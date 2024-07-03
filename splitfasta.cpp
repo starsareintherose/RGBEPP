@@ -35,17 +35,19 @@ void splitFasta(const std::string& input_fasta) {
 
 		if (line[0] == '>') {
 			// New sequence header
-			if (in_sequence) {
-				outfile.close();
+			if (in_sequence) {  // if found new sequence, close
+				outfile.close();  // previous output file
 			}
 			dir_name = line.substr(1);  // Remove '>'
-			// mkdir(dir_name.c_str(), 0777);	// Create
 			// directory
 			fs::create_directories(dir_name);
-			fs::path output_file = fs::path(dir_name) / input_fasta;
+			fs::path output_file =
+			    fs::path(dir_name) /
+			    input_fasta;  // suitable to many os
 			outfile.open(output_file);
 			outfile << ">" << removeExtension(input_fasta)
 				<< std::endl;
+			// will enter sequence
 			in_sequence = true;
 		} else if (in_sequence) {
 			// Inside sequence content
