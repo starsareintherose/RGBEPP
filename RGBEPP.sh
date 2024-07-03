@@ -41,9 +41,17 @@ show_help(){
                       -m\t--memory\tmemory settings (optional, default 16 GB)\n \
                       -r\t--reference\treference genome path\n \
                       -t\t--threads\tthreads setting (optional, default 8 threads)\n \
+                        \t--macse\t\tMacse jarfile path\n \
+                        \t--sortdiamond\tsortdiamond file path\n \
+                        \t--splitfasta\tsplitfasta file path\n \
                       for example: bash $0 -c scaffolds -f all -l list -g genes \ \n \
 			\t    -r Reference.exons.aa.fas \n"
 }
+
+if [ $# -eq 0 ]; then
+    show_help 
+    exit 1
+else
 
 ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads:,macse:,sortdiamond:,splitfasta: -n 'RGBEPP.sh' -- "$@")
 if [ $? != 0 ]; then
@@ -71,7 +79,6 @@ while true; do
             esac ;;
         -h|--help)
 	    show_help
-            HELP=true;
             shift ;;
         -l|--list)
             case "$2" in
@@ -109,14 +116,14 @@ while true; do
 		*) PathSplitfsata=$2; shift 2 ;;
 	    esac ;;
         --)
-	   show_help
-       	   HELP=true
 	   shift; break ;;
         *) echo "Unknown option: $1" 
 	   exit 1 
 	   ;;
     esac
 done
+
+fi
 
 ### Get and check some arguments
 
@@ -139,6 +146,13 @@ check_var() {
                 readarray -t full_names < "$var_value"
                 length_fn=${#full_names[@]}
                 ;;
+	    "ARG_F")
+		check_command "cp"
+		check_command "cd"
+    		check_command "mv"
+		check_command "find"
+		check_command "mkdir"
+		;;
         esac
 
     fi
@@ -170,13 +184,6 @@ check_command() {
     fi
 }
 
-if [ "$HELP" = false ]; then
-    check_command "cp"
-    check_command "cd"
-    check_command "mv"
-    check_command "find"
-    check_command "mkdir"
-fi
 
 ### Quality control && Trimming
 
