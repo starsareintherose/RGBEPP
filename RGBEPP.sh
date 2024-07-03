@@ -250,12 +250,18 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 		exit 1
 	fi
 
+	current_thread=0
 	mkdir -p $DirAlign
 	mkdir -p $DirAlign/AA && mkdir -p $DirAlign/NT
 	cd $DirMerge
 	for (( i=0; i<$length_gn; i++ ))
 	do
-		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta 
+		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta &
+	       ((current_thread++))
+       		if [ $current_thread -eq $ARG_T ]; then
+ 			wait
+			current_thread=0
+		fi		
 	done
 	cd -
 
