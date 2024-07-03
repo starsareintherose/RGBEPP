@@ -51,8 +51,9 @@ while true; do
 		       License: GPL-3.0-only\n \
 		       Author: Guoyi Zhang\n \
                       -c\t--contigs\tcontings type: scaffolds or contigs\n \
-		      -g\t--genes\tgene file path\n \
-                      -f\t--functions\tfunctions type (optional): all clean assembly fasta map pre split merge align\n \
+                      -g\t--genes\tgene file path\n \
+                      -f\t--functions\tfunctions type (optional): all clean \n \
+                        \t  assembly fasta map pre split merge align\n \
                       -h\t--help\thelp: show this information\n \
                       -l\t--list\tlist file path\n \
                       -m\t--memory\tmemory settings (optional, default 16 GB)\n \
