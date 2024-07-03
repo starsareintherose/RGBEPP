@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-project(RGB EPP)
-SET( CMAKE_EXPORT_COMPILE_COMMANDS ON )
+project(RGB_EPP)
+set( CMAKE_EXPORT_COMPILE_COMMANDS ON )
 
 set(CMAKE_CXX_STANDARD 17)
 
