@@ -46,7 +46,8 @@ while true; do
                 *) ARG_F=$2; shift 2 ;;
             esac ;;
         -h|--help)
-            echo -e "\t\t\t\t\t\t\tRGB EPP\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
+#            echo -e "\t\t\t\t\t\t\t\033[0;31mR\033[0m\033[0;92mG\033[0m\033[0;94mB\033[0m \033[0;33mE\033[0m\033[0;94mP\033[0m\033[0;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
+            echo -e "\t\t\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
 		       Version: $pkgver\n \
 		       License: GPL-3.0-only\n \
 		       Author: Guoyi Zhang\n \
@@ -250,19 +251,30 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 		exit 1
 	fi
 
-	current_thread=0
+	# current_thread=0
 	mkdir -p $DirAlign
 	mkdir -p $DirAlign/AA && mkdir -p $DirAlign/NT
 	cd $DirMerge
-	for (( i=0; i<$length_gn; i++ ))
-	do
-		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta &
-	       ((current_thread++))
-       		if [ $current_thread -eq $ARG_T ]; then
- 			wait
-			current_thread=0
-		fi		
-	done
+
+	align_by_macse() {
+		java -jar $PathMacse -prog alignSequences -seq $1.fasta -out_AA ../$DirAlign/AA/$1.fasta -out_NT ../$DirAlign/NT/$1.fasta &	
+	}
+
+	export -f align_by_macse
+
+	parallel -j $ARG_T align_by_macse ::: "${genes[@]}"
+
+#	for (( i=0; i<$length_gn; i++ ))
+#	do
+#		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta &
+#	       ((current_thread++))
+#       		if [ $current_thread -eq $ARG_T ]; then
+# 			wait
+#			current_thread=0
+#		fi		
+#	done
+
+
 	cd -
 
 fi
