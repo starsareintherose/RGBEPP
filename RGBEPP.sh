@@ -21,7 +21,7 @@ HELP=false
 
 ### Get some arrays
 
-ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads: -n 'batch.sh' -- "$@")
+ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads: -n 'RGBEPP.sh' -- "$@")
 if [ $? != 0 ]; then
     echo "Failed to parse options." >&2
     exit 1
@@ -46,7 +46,7 @@ while true; do
                 *) ARG_F=$2; shift 2 ;;
             esac ;;
         -h|--help)
-            echo -e "\t\t\t\t\tExon Phylogeny Pipeline\n \
+            echo -e "\t\t\t\t\tRGB EPP\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
 		       Version: $pkgver\n \
 		       License: GPL-3.0-only\n \
 		       Author: Guoyi Zhang\n \
