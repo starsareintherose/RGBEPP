@@ -255,7 +255,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 	cd $DirMerge
 	for (( i=0; i<$length_gn; i++ ))
 	do
-		java -jar $PathMacse -prog alignSequences -seq ${genes}.fasta -out_AA ../$DirAlign/AA/$genes.fasta -out_NT ../$DirAlign/NT/$genes.fasta 
+		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta 
 	done
 	cd -
 
