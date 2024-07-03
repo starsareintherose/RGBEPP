@@ -21,7 +21,7 @@ HELP=false
 
 ### Get some arrays
 
-ARGS=$(getopt -o c:,f:,h,l:,m:,r:,t: --long contig:,functions:,help,list:,memory:,reference:,threads: -n 'batch.sh' -- "$@")
+ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads: -n 'batch.sh' -- "$@")
 if [ $? != 0 ]; then
     echo "Failed to parse options." >&2
     exit 1
@@ -30,10 +30,15 @@ eval set -- "$ARGS"
 
 while true; do
     case "$1" in
-        -c|--contig)
+        -c|--contigs)
             case "$2" in
                 "") ARG_C='scaffolds'; shift 2 ;;
                 *) ARG_C=$2; shift 2 ;;
+            esac ;;
+        -g|--genes)
+            case "$2" in
+                "") shift 2 ;;
+                *) ARG_G=$2; shift 2 ;;
             esac ;;
         -f|--functions)
             case "$2" in
@@ -45,14 +50,15 @@ while true; do
 		       Version: $pkgver\n \
 		       License: GPL-3.0-only\n \
 		       Author: Guoyi Zhang\n \
-                      -c\t--contig\tcontings type: scaffolds or contigs\n \
+                      -c\t--contigs\tcontings type: scaffolds or contigs\n \
+		      -g\t--genes\tgene file path\n \
                       -f\t--functions\tfunctions type (optional): all clean assembly fasta map pre split merge align\n \
                       -h\t--help\thelp: show this information\n \
                       -l\t--list\tlist file path\n \
                       -m\t--memory\tmemory settings (optional, default 16 GB)\n \
                       -r\t--reference\treference genome path\n \
                       -t\t--threads\tthreads setting (optional, default 8 threads)\n \
-                      for example: bash $0 -c scaffolds -f all -l list -r Reference.exons.aa.fas \n"
+                      for example: bash $0 -c scaffolds -f all -l list -g genes -r Reference.exons.aa.fas \n"
             HELP=true
             shift ;;
         -l|--list)
@@ -89,7 +95,9 @@ if [ "$HELP" = false ]; then
     fi
 
     readarray -t full_names < "$ARG_L"
+    readarray -t genes < "$ARG_G"
     length_fn=${#full_names[@]}
+    length_gn=${#genes[@]}
 fi
 
 ### Quality control && Trimming
@@ -214,12 +222,18 @@ fi
 
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "merge" ]; then
 
+	## Check if the genes is specified
+	if [ -z "$ARG_G" ] ; then
+		echo "Argument of genes list missing."
+		exit 1
+	fi
+
 	mkdir -p $DirMerge
 	cd $DirSplit
-	for genes in $(ls) 
+	for (( i=0; i<$length_gn; i++ )) 
 	do
-		cd $genes
-		cat * > ../$genes.fasta
+		cd ${genes[$i]}
+		cat * > ../${genes[$i]}.fasta
 		cd ..
 	done
 	mv *.fasta ../$DirMerge
@@ -229,10 +243,16 @@ fi
 
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 
+	## Check if the genes is specified
+	if [ -z "$ARG_G" ] ; then
+		echo "Argument of genes list missing."
+		exit 1
+	fi
+
 	mkdir -p $DirAlign
 	mkdir -p $DirAlign/AA && mkdir -p $DirAlign/NT
 	cd $DirMerge
-	for genes in $(ls | sed "s@.fasta@@g")
+	for (( i=0; i<$length_gn; i++ ))
 	do
 		java -jar $PathMacse -prog alignSequences -seq ${genes}.fasta -out_AA ../$DirAlign/AA/$genes.fasta -out_NT ../$DirAlign/NT/$genes.fasta 
 	done
