@@ -301,7 +301,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "pre" ]; then
 	mkdir -p $DirPre
 
 	check_var "ARG_L"
-	checkPath "PathSortdiamond"
+	check_path "PathSortdiamond"
 
 	for (( i=0; i<$length_fn; i++ )); do	
 		$PathSortdiamond $DirMap/${full_names[$i]}.m8 $DirPre/${full_names[$i]}.fasta
@@ -314,7 +314,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "split" ]; then
 	cd $DirPre
 
 	check_var "ARG_L"
-	checkPath "PathSplitfasta"
+	check_path "PathSplitfasta"
 
 	for (( i=0; i<$length_fn; i++ )); do
 		$PathSplitfsata ${full_names[$i]}.fasta
@@ -347,7 +347,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 	check_var "ARG_G"
 	check_command "java"
 	check_command "parallel"
-	checkPath "PathMacse"
+	check_path "PathMacse"
 
 	# current_thread=0
 	mkdir -p $DirAlign
