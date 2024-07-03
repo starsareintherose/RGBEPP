@@ -19,9 +19,33 @@ PathSortdiamond=/home/guoyi/Downloads/PhD/wes/sortdiamond
 
 HELP=false
 
+ARG_C='scaffolds'
+#ARG_F='all'
+ARG_M=16
+ARG_T=8
+
 ### Get some arrays
 
-ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads: -n 'RGBEPP.sh' -- "$@")
+show_help(){
+#            echo -e "\t\t\t\t\t\t\t\033[0;31mR\033[0m\033[0;92mG\033[0m\033[0;94mB\033[0m \033[0;33mE\033[0m\033[0;94mP\033[0m\033[0;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
+            echo -e "\t\t\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
+		       Version: $pkgver\n \
+		       License: GPL-3.0-only\n \
+		       Author: Guoyi Zhang\n \
+                      -c\t--contigs\tcontings type: scaffolds or contigs\n \
+                      -g\t--genes\t\tgene file path\n \
+                      -f\t--functions\tfunctions type (optional): all clean \n \
+                        \t  \t\tassembly fasta map pre split merge align\n \
+                      -h\t--help\t\tshow this information\n \
+                      -l\t--list\t\tlist file path\n \
+                      -m\t--memory\tmemory settings (optional, default 16 GB)\n \
+                      -r\t--reference\treference genome path\n \
+                      -t\t--threads\tthreads setting (optional, default 8 threads)\n \
+                      for example: bash $0 -c scaffolds -f all -l list -g genes \ \n \
+			\t    -r Reference.exons.aa.fas \n"
+}
+
+ARGS=$(getopt -o c:,f:,g:,h,l:,m:,r:,t: --long contigs:,genes:,functions:,help,list:,memory:,reference:,threads:,macse:,sortdiamond:,splitfasta: -n 'RGBEPP.sh' -- "$@")
 if [ $? != 0 ]; then
     echo "Failed to parse options." >&2
     exit 1
@@ -32,7 +56,7 @@ while true; do
     case "$1" in
         -c|--contigs)
             case "$2" in
-                "") ARG_C='scaffolds'; shift 2 ;;
+                "") shift 2 ;;
                 *) ARG_C=$2; shift 2 ;;
             esac ;;
         -g|--genes)
@@ -42,26 +66,12 @@ while true; do
             esac ;;
         -f|--functions)
             case "$2" in
-                "") ARG_F='all'; shift 2 ;;
+                "") shift 2 ;;
                 *) ARG_F=$2; shift 2 ;;
             esac ;;
         -h|--help)
-#            echo -e "\t\t\t\t\t\t\t\033[0;31mR\033[0m\033[0;92mG\033[0m\033[0;94mB\033[0m \033[0;33mE\033[0m\033[0;94mP\033[0m\033[0;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
-            echo -e "\t\t\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
-		       Version: $pkgver\n \
-		       License: GPL-3.0-only\n \
-		       Author: Guoyi Zhang\n \
-                      -c\t--contigs\tcontings type: scaffolds or contigs\n \
-                      -g\t--genes\t\tgene file path\n \
-                      -f\t--functions\tfunctions type (optional): all clean \n \
-                        \t  \t\tassembly fasta map pre split merge align\n \
-                      -h\t--help\t\thelp: show this information\n \
-                      -l\t--list\t\tlist file path\n \
-                      -m\t--memory\tmemory settings (optional, default 16 GB)\n \
-                      -r\t--reference\treference genome path\n \
-                      -t\t--threads\tthreads setting (optional, default 8 threads)\n \
-                      for example: bash $0 -c scaffolds -f all -l list -g genes -r Reference.exons.aa.fas \n"
-            HELP=true
+	    show_help
+            HELP=true;
             shift ;;
         -l|--list)
             case "$2" in
@@ -70,7 +80,7 @@ while true; do
             esac ;;
         -m|--memory)
             case "$2" in
-                "") ARG_M=16; shift 2 ;;
+                "") shift 2 ;;
                 *) ARG_M=$2; shift 2 ;;
             esac ;;
         -r|--reference)
@@ -80,26 +90,92 @@ while true; do
             esac ;;
         -t|--threads)
             case "$2" in
-                "") ARG_T=8; shift 2 ;;
+                "") shift 2 ;;
                 *) ARG_T=$2; shift 2 ;;
             esac ;;
-        --) shift; break ;;
-        *) echo "Internal error!"; exit 1 ;;
+	--macse)
+	    case "$2" in
+	        "") shift 2 ;;
+		*) PathMacse=$2; shift 2 ;;
+	    esac ;;
+	--sortdiamond)
+	    case "$2" in
+	        "") shift 2 ;;
+		*) PathSortdiamond=$2; shift 2 ;;
+	    esac ;;
+	--splitfasta)
+	    case "$2" in
+	        "") shift 2 ;;
+		*) PathSplitfsata=$2; shift 2 ;;
+	    esac ;;
+        --)
+	   show_help
+       	   HELP=true
+	   shift; break ;;
+        *) echo "Unknown option: $1" 
+	   exit 1 
+	   ;;
     esac
 done
 
 ### Get and check some arguments
 
-if [ "$HELP" = false ]; then
-    if [ -z "$ARG_L" ]; then
-        echo "List argument can't be empty"
-        exit 1
-    fi
+check_var() {
+    local var_name="$1"
+    local var_value="${!var_name}"  # get value
 
-    readarray -t full_names < "$ARG_L"
-    readarray -t genes < "$ARG_G"
-    length_fn=${#full_names[@]}
-    length_gn=${#genes[@]}
+    if [ -z "$var_value" ]; then
+        echo "Error: $var_name is not set or is empty"
+	exit 1
+    else
+        echo "$var_name is set to: $var_value"
+
+        case "$var_name" in
+            "ARG_G")
+                readarray -t genes < "$var_value"
+                length_gn=${#genes[@]}
+                ;;
+            "ARG_L")
+                readarray -t full_names < "$var_value"
+                length_fn=${#full_names[@]}
+                ;;
+        esac
+
+    fi
+}
+
+check_path(){
+    local path_name="$1"
+    local path_value="${!path_name}"  # get value
+
+    # expand ~
+    path_value=$(eval echo "$path_value")
+
+    if [ -e "$path_value" ]; then
+        echo "$path_name exists at: $path_value"
+    else
+        echo "Error: $path_name does not exist at: $path_value"
+	exit 1
+    fi
+}
+
+check_command() {
+    local cmd_name="$1"
+
+    if command -v "$cmd_name" >/dev/null 2>&1; then
+        echo "$cmd_name command exists."
+    else
+        echo "Error: $cmd_name command not found."
+	exit 1
+    fi
+}
+
+if [ "$HELP" = false ]; then
+    check_command "cp"
+    check_command "cd"
+    check_command "mv"
+    check_command "find"
+    check_command "mkdir"
 fi
 
 ### Quality control && Trimming
@@ -108,6 +184,15 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "clean" ]; then
 
 	## Prepare
 	mkdir -p $DirQcTrim
+
+	check_var "ARG_L"
+	check_command "fastp"
+
+	    readarray -t full_names < "$ARG_L"
+    length_fn=${#full_names[@]}
+
+    readarray -t genes < "$ARG_G"
+    length_gn=${#genes[@]}
 
 	## Quality control and trimming using fastp
 	for (( i=0; i<$length_fn; i++ )); do
@@ -122,7 +207,10 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "assembly" ]; then
 
 	## Prepare
 	mkdir -p $DirAssembly
-	
+
+	check_var "ARG_L"
+	check_command "spades.py"
+
 	## De novo assembly using spades
 	for (( i=0; i<$length_fn; i++ )); do
 		mkdir -p $DirAssembly/${full_names[$i]} 
@@ -137,10 +225,8 @@ fi
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "fasta" ]; then
 
 	## Check if the contigs type is specified
-	if [ -z "$ARG_C" ] ; then
-		echo "Argument of contig type missing."
-		exit 1
-	fi
+	check_var "ARG_C"
+	check_var "ARG_L"
 
 	## Prepare
 	mkdir -p $DirFasta
@@ -159,10 +245,9 @@ fi
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "map" ]; then
 
 	## Check if the reference or contigs type is specified
-	if [ -z "$ARG_R" ] || [ -z "$ARG_C" ] ; then
-		echo "Argument of reference or contig type missing."
-		exit 1
-	fi
+	check_var "ARG_C"
+	check_var "ARG_R"
+	check_command "diamond"
 
 	## Prepare
 	mkdir -p $DirMap
@@ -205,7 +290,12 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "map" ]; then
 fi
 
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "pre" ]; then
+
 	mkdir -p $DirPre
+
+	check_var "ARG_L"
+	checkPath "PathSortdiamond"
+
 	for (( i=0; i<$length_fn; i++ )); do	
 		$PathSortdiamond $DirMap/${full_names[$i]}.m8 $DirPre/${full_names[$i]}.fasta
 	done
@@ -215,6 +305,10 @@ fi
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "split" ]; then
 	mkdir -p $DirSplit
 	cd $DirPre
+
+	check_var "ARG_L"
+	checkPath "PathSplitfasta"
+
 	for (( i=0; i<$length_fn; i++ )); do
 		$PathSplitfsata ${full_names[$i]}.fasta
 	done
@@ -225,10 +319,7 @@ fi
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "merge" ]; then
 
 	## Check if the genes is specified
-	if [ -z "$ARG_G" ] ; then
-		echo "Argument of genes list missing."
-		exit 1
-	fi
+	check_var "ARG_G"
 
 	mkdir -p $DirMerge
 	cd $DirSplit
@@ -246,34 +337,17 @@ fi
 if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 
 	## Check if the genes is specified
-	if [ -z "$ARG_G" ] ; then
-		echo "Argument of genes list missing."
-		exit 1
-	fi
+	check_var "ARG_G"
+	check_command "java"
+	check_command "parallel"
+	checkPath "PathMacse"
 
 	# current_thread=0
 	mkdir -p $DirAlign
 	mkdir -p $DirAlign/AA && mkdir -p $DirAlign/NT
 	cd $DirMerge
 
-	align_by_macse() {
-		java -jar $PathMacse -prog alignSequences -seq $1.fasta -out_AA ../$DirAlign/AA/$1.fasta -out_NT ../$DirAlign/NT/$1.fasta &	
-	}
-
-	export -f align_by_macse
-
-	parallel -j $ARG_T align_by_macse ::: "${genes[@]}"
-
-#	for (( i=0; i<$length_gn; i++ ))
-#	do
-#		java -jar $PathMacse -prog alignSequences -seq ${genes[$i]}.fasta -out_AA ../$DirAlign/AA/${genes[$i]}.fasta -out_NT ../$DirAlign/NT/${genes[$i]}.fasta &
-#	       ((current_thread++))
-#       		if [ $current_thread -eq $ARG_T ]; then
-# 			wait
-#			current_thread=0
-#		fi		
-#	done
-
+	parallel -j $ARG_T java -jar $PathMacse -prog alignSequences -seq {}.fasta -out_AA ../$DirAlign/AA/{}.fasta -out_NT ../$DirAlign/NT/{}.fasta ::: "${genes[@]}"
 
 	cd -
 
