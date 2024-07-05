@@ -3,24 +3,23 @@
 ### Environment Setting
 
 pkgver=0.0.1
-DirRaw=00_raw
-DirQcTrim=01_fastp
-DirAssembly=02_spades
-DirFasta=03_assemblied
-DirMap=04_diamond
-DirPre=05_pre
-DirSplit=06_split
-DirMerge=07_merge
-DirAlign=08_macse
 
-PathSplitfsata=~/Downloads/PhD/wes/splitfasta-cpp
+DirHome=$(pwd)
+DirRaw=$DirHome/00_raw
+DirQcTrim=$DirHome/01_fastp
+DirAssembly=$DirHome/02_spades
+DirFasta=$DirHome/03_assemblied
+DirMap=$DirHome/04_diamond
+DirPre=$DirHome/05_pre
+DirSplit=$DirHome/06_split
+DirMerge=$DirHome/07_merge
+DirAlign=$DirHome/08_macse
+
+PathSplitfsata=/usr/bin/splitfasta-cpp
 PathMacse=/usr/share/java/macse.jar
-PathSortdiamond=/home/guoyi/Downloads/PhD/wes/sortdiamond
-
-HELP=false
+PathSortdiamond=/usr/bin/sortdiamond
 
 ARG_C='scaffolds'
-#ARG_F='all'
 ARG_M=16
 ARG_T=8
 
@@ -45,7 +44,7 @@ show_help(){
                         \t--sortdiamond\tsortdiamond file path\n \
                         \t--splitfasta\tsplitfasta file path\n \
                       for example: bash $0 -c scaffolds -f all -l list -g genes \ \n \
-			\t    -r Reference.exons.aa.fas \n"
+			\t    -r reference.aa.fas \n"
 }
 
 if [ $# -eq 0 ]; then
@@ -282,11 +281,11 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "map" ]; then
 	#10:	send: End of alignment in subject
 	#11:	evalue: Expect value
 	#12:	bitscore: Bit score
-	#13:	qlen: Query sequence length 比对序列长度
+	#13:	qlen: Query sequence length
 	#14:	slen: Subject sequence length
 	#15:	gaps: Total number of gaps
 	#16:	ppos: Percentage of positive - scoring matches
-	#17:	qframe: Query frame (frames in ECPP.sh)
+	#17:	qframe: Query frame (frames in blast?)
 	#18:	qseq: Aligned part of query sequence
 
 	done
