@@ -81,7 +81,8 @@ void readInputFile(const string &filename,
 	string line;
 	while (getline(infile, line)) {
 		istringstream iss(line);
-		string fields[intmax + 1];
+		vector<string> fields(intmax + 1);
+		// string fields[intmax + 1];
 		int i = 0;
 		while (iss >> fields[i] && i < (intmax + 1)) {
 			i++;
@@ -110,7 +111,8 @@ void processMap(const map<string, pair<double, string>> &max_map,
 		const int intmax) {
 	for (const auto &entry : max_map) {
 		istringstream iss(entry.second.second);
-		string fields[intmax + 1];
+		vector<string> fields(intmax + 1);
+		// string fields[intmax + 1];
 		int i = 0;
 		while (iss >> fields[i] && i < (intmax + 1)) {
 			i++;
