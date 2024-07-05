@@ -10,6 +10,15 @@ using namespace std;
 const int n_intarr = 5;
 bool use_bitscore = true;
 
+// Struct to store the data fields
+struct SeqData {
+	string sseqid;
+	int qstart;
+	int qend;
+	double bit_or_e;
+	string qseq;
+};
+
 // Function to generate reverse complement of a DNA sequence
 string revcomp(const string &seq) {
 	string revseq;
@@ -67,8 +76,7 @@ string revcomp(const string &seq) {
 	return revseq;
 }
 
-void readInputFile(const string &filename,
-		   map<string, pair<double, string>> &max_map,
+void readInputFile(const string &filename, vector<SeqData> &data_vector,
 		   const int *intnums, const int intmax) {
 	ifstream infile(filename);
 	if (!infile) {
@@ -84,59 +92,69 @@ void readInputFile(const string &filename,
 		while (iss >> fields[i] && i < (intmax + 1)) {
 			i++;
 		}
-		// subject seq id
-		string seqid = fields[intnums[0]];
-		double bitE = stod(fields[intnums[3]]);
-		if (use_bitscore) {
-			// bit score
-			// Check if the seqid already exists in the map
-			if (max_map.find(seqid) != max_map.end()) {
-				// If the new bitscore is greater, update the
-				// map
-				if (bitE > max_map[seqid].first) {
-					max_map[seqid] = make_pair(bitE, line);
-				}
-			} else {
-				// If the seqid does not exist, insert the new
-				// seqid-bitE pair
-				max_map[seqid] = make_pair(bitE, line);
-			}
-		} else {
-			// evalue
-			// Check if the seqid already exists in the map
-			if (max_map.find(seqid) != max_map.end()) {
-				// If the new evalue is greater, update the
-				// map
-				if (bitE < max_map[seqid].first) {
-					max_map[seqid] = make_pair(bitE, line);
-				}
-			} else {
-				// If the seqid does not exist, insert the new
-				// seqid-bitE pair
-				max_map[seqid] = make_pair(bitE, line);
-			}
-		}
+		// Extract fields
+		SeqData data;
+		data.sseqid = fields[intnums[0]];
+		data.qstart = stoi(fields[intnums[1]]);
+		data.qend = stoi(fields[intnums[2]]);
+		data.bit_or_e = stod(fields[intnums[3]]);
+		data.qseq = fields[intnums[4]];
+
+		// Store the data
+		data_vector.push_back(data);
 	}
 	infile.close();
 }
 
-void processMap(const map<string, pair<double, string>> &max_map,
-		vector<pair<string, string>> &result, const int *intnums,
-		const int intmax) {
-	for (const auto &entry : max_map) {
-		istringstream iss(entry.second.second);
-		vector<string> fields(intmax + 1);
-		// string fields[intmax + 1];
-		int i = 0;
-		while (iss >> fields[i] && i < (intmax + 1)) {
-			i++;
+void processCompare(const vector<SeqData> &data_vector,
+		    map<string, SeqData> &best_map) {
+	for (const auto &data : data_vector) {
+		double bitE = data.bit_or_e;
+		const string &sseqid = data.sseqid;
+
+		if (use_bitscore) {
+			// bit score
+			// Check if the seqid already exists in the map
+			if (best_map.find(sseqid) != best_map.end()) {
+				// If the new bitscore is greater, update the
+				// map
+				if (bitE > best_map[sseqid].bit_or_e) {
+					best_map[sseqid] = data;
+				}
+			} else {
+				// If the seqid does not exist, insert the new
+				// seqid-bitE pair
+				best_map[sseqid] = data;
+			}
+		} else {
+			// evalue
+			// Check if the seqid already exists in the map
+			if (best_map.find(sseqid) != best_map.end()) {
+				// If the new evalue is greater, update the
+				// map
+				if (bitE < best_map[sseqid].bit_or_e) {
+					best_map[sseqid] = data;
+				}
+			} else {
+				// If the seqid does not exist, insert the new
+				// seqid-bitE pair
+				best_map[sseqid] = data;
+			}
 		}
-		// check if qstart is larger than qend
-		if (stoi(fields[intnums[1]]) > stoi(fields[intnums[2]])) {
-			fields[intnums[4]] = revcomp(fields[intnums[4]]);
+	}
+}
+
+void processRevert(const map<string, SeqData> &best_map,
+		   vector<pair<string, string>> &result) {
+	for (const auto &entry : best_map) {
+		const SeqData &data = entry.second;
+
+		// Check if qstart is larger than qend
+		string qseq = data.qseq;
+		if (data.qstart > data.qend) {
+			qseq = revcomp(qseq);
 		}
-		result.push_back(
-		    make_pair(">" + fields[intnums[0]], fields[intnums[4]]));
+		result.push_back(make_pair(">" + data.sseqid, qseq));
 	}
 	sort(result.begin(), result.end());
 }
@@ -148,7 +166,6 @@ void writeOutputFile(const string &filename,
 		cerr << "Error opening output file: " << filename << endl;
 		return;
 	}
-
 	for (const auto &entry : result) {
 		outfile << entry.first << "\n" << entry.second << "\n";
 	}
@@ -188,12 +205,10 @@ int main(int argc, char *argv[]) {
 				use_bitscore = true;
 			} else if (tmpstri == "evalue") {
 				use_bitscore = false;
-
 			} else {
 				cout << "Unknown argument: " << argv[4] << endl;
 			}
 		}
-
 	} else if (argc != 3) {
 		cerr << "Usage: " << argv[0]
 		     << " <input_file> <output_file> "
@@ -208,11 +223,17 @@ int main(int argc, char *argv[]) {
 		string in_name = argv[1];
 		string ot_name = argv[2];
 
-		map<string, pair<double, string>> max_map;
-		readInputFile(in_name, max_map, intnums, intmax);
+		// get useful information from reading input file
+		vector<SeqData> data_vector;
+		readInputFile(in_name, data_vector, intnums, intmax);
 
+		// calculate best bitscore or evalue
+		map<string, SeqData> best_map;
+		processCompare(data_vector, best_map);
+
+		// write the result
 		vector<pair<string, string>> result;
-		processMap(max_map, result, intnums, intmax);
+		processRevert(best_map, result);
 
 		writeOutputFile(ot_name, result);
 	}
