@@ -63,7 +63,9 @@ for example: bash RGBEPP.sh -c scaffolds -f all -l list -g genes -r reference.aa
 └── RGBEPP.sh
 ```
 
-Each directory corresponds to each function. 
+Each directory corresponds to each function.
+
+`00_raw` should conatin all raw fastq.gz data.
 
 ## Text Files
 
