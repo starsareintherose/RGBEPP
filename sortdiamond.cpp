@@ -7,6 +7,11 @@
 
 using namespace std;
 
+const int n_intarr = 5;
+
+string revcomp(const string &seq);
+int maxInts(int intnums[n_intarr]);
+
 // Function to generate reverse complement of a DNA sequence
 string revcomp(const string &seq) {
 	string revseq;
@@ -65,7 +70,8 @@ string revcomp(const string &seq) {
 }
 
 void readInputFile(const string &filename,
-		   map<string, pair<double, string>> &max_map) {
+		   map<string, pair<double, string>> &max_map,
+		   const int *intnums, const int intmax) {
 	ifstream infile(filename);
 	if (!infile) {
 		cerr << "Error opening input file: " << filename << endl;
@@ -75,15 +81,15 @@ void readInputFile(const string &filename,
 	string line;
 	while (getline(infile, line)) {
 		istringstream iss(line);
-		string fields[20];
+		string fields[intmax + 1];
 		int i = 0;
-		while (iss >> fields[i] && i < 20) {
+		while (iss >> fields[i] && i < (intmax + 1)) {
 			i++;
 		}
 		// subject seq id
-		string key = fields[1];
+		string key = fields[intnums[0]];
 		// bit score
-		double value = stod(fields[11]);
+		double value = stod(fields[intnums[3]]);
 		// Check if the key already exists in the map
 		if (max_map.find(key) != max_map.end()) {
 			// If the new value is greater, update the map
@@ -100,19 +106,21 @@ void readInputFile(const string &filename,
 }
 
 void processMap(const map<string, pair<double, string>> &max_map,
-		vector<pair<string, string>> &result) {
+		vector<pair<string, string>> &result, const int *intnums,
+		const int intmax) {
 	for (const auto &entry : max_map) {
 		istringstream iss(entry.second.second);
-		string fields[20];
+		string fields[intmax + 1];
 		int i = 0;
-		while (iss >> fields[i] && i < 20) {
+		while (iss >> fields[i] && i < (intmax + 1)) {
 			i++;
 		}
 		// check if qstart is larger than qend
-		if (stoi(fields[6]) > stoi(fields[7])) {
-			fields[17] = revcomp(fields[17]);
+		if (stoi(fields[intnums[1]]) > stoi(fields[intnums[2]])) {
+			fields[intnums[4]] = revcomp(fields[intnums[4]]);
 		}
-		result.push_back(make_pair(">" + fields[1], fields[17]));
+		result.push_back(
+		    make_pair(">" + fields[intnums[0]], fields[intnums[4]]));
 	}
 	sort(result.begin(), result.end());
 }
@@ -131,23 +139,56 @@ void writeOutputFile(const string &filename,
 	outfile.close();
 }
 
+void splitInts(const std::string &str, int intnums[n_intarr]) {
+	istringstream iss(str);
+	int numi = 0;
+	string tmpstr;
+	while (std::getline(iss, tmpstr, ',') && numi < n_intarr) {
+		intnums[numi] = std::stoi(tmpstr);
+		cout << intnums[numi] << endl;
+		numi++;
+	}
+}
+
+int maxInts(int intnums[n_intarr]) {
+	int intmax = intnums[0];
+	for (int i = 1; i < n_intarr; i++) {
+		if (intnums[i] > intmax) {
+			intmax = intnums[i];
+		}
+	}
+	cout << intmax << endl;
+	return intmax;
+}
+
 int main(int argc, char *argv[]) {
-	if (argc != 3) {
-		cerr << "Usage: " << argv[0] << " <input_file> <output_file>"
+	int intnums[n_intarr] = {1, 6, 7, 11, 17};
+	int intmax = 17;
+
+	if (argc == 4) {
+		splitInts(argv[3], intnums);
+		intmax = maxInts(intnums);
+
+	} else if (argc != 3) {
+		cerr << "Usage: " << argv[0]
+		     << " <input_file> <output_file> "
+			"<sseq,qstart,qend,bitscore,qseq>"
 		     << endl;
 		return 1;
 	}
 
-	string in_name = argv[1];
-	string ot_name = argv[2];
+	if (argc == 3 || argc == 4) {
+		string in_name = argv[1];
+		string ot_name = argv[2];
 
-	map<string, pair<double, string>> max_map;
-	readInputFile(in_name, max_map);
+		map<string, pair<double, string>> max_map;
+		readInputFile(in_name, max_map, intnums, intmax);
 
-	vector<pair<string, string>> result;
-	processMap(max_map, result);
+		vector<pair<string, string>> result;
+		processMap(max_map, result, intnums, intmax);
 
-	writeOutputFile(ot_name, result);
+		writeOutputFile(ot_name, result);
+	}
 
 	return 0;
 }
