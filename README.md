@@ -6,9 +6,9 @@ License: GPL-2.0-only
 
 Author: Guoyi Zhang
 
-# Requirements
+## Requirements
 
-## External software 
+### External software 
 
 - GNU Bash (provide cd)
 - GNU coreutils (provide cp mv mkdir mv)
@@ -20,14 +20,14 @@ Author: Guoyi Zhang
 - macse (default recognized path: /usr/share/java/macse.jar)
 - GNU parallel
 
-## Internal software
+### Internal software
 
 - splitfasta (default recognized path: /usr/bin/splitfasta)
 - sortdiamond (default recognized path: /usr/bin/sortdiamond)
 
-# Arguments
+## Arguments
 
-## Details
+### Details
 
 ```
 -c	--contigs	contings type: scaffolds or contigs
@@ -45,7 +45,7 @@ Author: Guoyi Zhang
 for example: bash RGBEPP.sh -c scaffolds -f all -l list -g genes -r reference.aa.fasta 
 ```
 
-## Directories Design
+### Directories Design
 
 ```
 .
@@ -68,7 +68,7 @@ Each directory corresponds to each function.
 
 `00_raw` should conatin all raw fastq.gz data.
 
-## Text Files
+### Text Files
 
 `list` is the text file containing all samples, if your raw data is following the style ${list_name}\_R1.fastq.gz and  ${list_name}\_R2.fastq.gz, ${list_name} is what you should list in `list` file. The easy way to get it in Linux/Unix system is the following command
 
@@ -86,9 +86,9 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
 
 `reference.aa.fasta` can be replaced by another other name, but it must contain reference amino acids genome in fasta format
 
-# Progress
+## Process
 
-## RGBEPP.sh functions
+### RGBEPP.sh functions
 
  - Function clean: Quality control + trimming (fastp)
  - Function assembly: de novo assembly (spades)
@@ -99,9 +99,23 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
  - Function merge: merge different taxa in the same reference exon gene to one fasta (RGBEPP.sh)
  - Function align: multiple sequence align based on Condon (macse)
 
-## Downstream process
+### Downstream process
 
  - concatenate sequences via SeqCombGo or catsequences or sequencematrix
  - coalescent / concatenated phylogeny
+
+# sortdiamond
+
+Usage: sortdiamond diamond_output.m8 generated.fasta sseq,qstart,qend,bitscore/evalue,qseq(optional, default 1,6,7,11,17, start from 0) bitscore/evalue(optional, default bitscore)
+
+Default sseq is column 2, qstart is column 8, etc.
+
+Diamond default output format (--outfmt 6) does not contain qseq, you must custom the output format under output format 6. 
+
+# splitfasta
+
+Usage: splitfasta sample.fasta
+
+It always creates directories in the path that you run the splitfasta, and puts split fasta into the directory.
 
 
