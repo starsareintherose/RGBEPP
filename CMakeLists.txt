@@ -10,3 +10,7 @@ add_executable(sortdiamond sortdiamond.cpp)
 	
 target_compile_options(splitfasta PRIVATE -Wall -Wextra -pedantic -O3)
 target_compile_options(sortdiamond PRIVATE -Wall -Wextra -pedantic -O3)
+
+install(FILES RGBEPP.sh DESTINATION /usr/bin/RGBEPP.sh)
+install(FILES splitfasta DESTINATION /usr/bin/splitfasta)
+install(FILES sortdiamond DESTINATION /usr/bin/sortdiamond)
