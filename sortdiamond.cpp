@@ -8,9 +8,7 @@
 using namespace std;
 
 const int n_intarr = 5;
-
-string revcomp(const string &seq);
-int maxInts(int intnums[n_intarr]);
+bool use_bitscore = true;
 
 // Function to generate reverse complement of a DNA sequence
 string revcomp(const string &seq) {
@@ -77,7 +75,6 @@ void readInputFile(const string &filename,
 		cerr << "Error opening input file: " << filename << endl;
 		return;
 	}
-
 	string line;
 	while (getline(infile, line)) {
 		istringstream iss(line);
@@ -88,19 +85,36 @@ void readInputFile(const string &filename,
 			i++;
 		}
 		// subject seq id
-		string key = fields[intnums[0]];
-		// bit score
-		double value = stod(fields[intnums[3]]);
-		// Check if the key already exists in the map
-		if (max_map.find(key) != max_map.end()) {
-			// If the new value is greater, update the map
-			if (value > max_map[key].first) {
-				max_map[key] = make_pair(value, line);
+		string seqid = fields[intnums[0]];
+		double bitE = stod(fields[intnums[3]]);
+		if (use_bitscore) {
+			// bit score
+			// Check if the seqid already exists in the map
+			if (max_map.find(seqid) != max_map.end()) {
+				// If the new bitscore is greater, update the
+				// map
+				if (bitE > max_map[seqid].first) {
+					max_map[seqid] = make_pair(bitE, line);
+				}
+			} else {
+				// If the seqid does not exist, insert the new
+				// seqid-bitE pair
+				max_map[seqid] = make_pair(bitE, line);
 			}
 		} else {
-			// If the key does not exist, insert the new key-value
-			// pair
-			max_map[key] = make_pair(value, line);
+			// evalue
+			// Check if the seqid already exists in the map
+			if (max_map.find(seqid) != max_map.end()) {
+				// If the new evalue is greater, update the
+				// map
+				if (bitE < max_map[seqid].first) {
+					max_map[seqid] = make_pair(bitE, line);
+				}
+			} else {
+				// If the seqid does not exist, insert the new
+				// seqid-bitE pair
+				max_map[seqid] = make_pair(bitE, line);
+			}
 		}
 	}
 	infile.close();
@@ -147,7 +161,6 @@ void splitInts(const std::string &str, int intnums[n_intarr]) {
 	string tmpstr;
 	while (std::getline(iss, tmpstr, ',') && numi < n_intarr) {
 		intnums[numi] = std::stoi(tmpstr);
-		cout << intnums[numi] << endl;
 		numi++;
 	}
 }
@@ -159,7 +172,6 @@ int maxInts(int intnums[n_intarr]) {
 			intmax = intnums[i];
 		}
 	}
-	cout << intmax << endl;
 	return intmax;
 }
 
@@ -167,19 +179,32 @@ int main(int argc, char *argv[]) {
 	int intnums[n_intarr] = {1, 6, 7, 11, 17};
 	int intmax = 17;
 
-	if (argc == 4) {
+	if (argc == 4 || argc == 5) {
 		splitInts(argv[3], intnums);
 		intmax = maxInts(intnums);
+		if (argc == 5) {
+			string tmpstri = argv[4];
+			if (tmpstri == "bitscore") {
+				use_bitscore = true;
+			} else if (tmpstri == "evalue") {
+				use_bitscore = false;
+
+			} else {
+				cout << "Unknown argument: " << argv[4] << endl;
+			}
+		}
 
 	} else if (argc != 3) {
 		cerr << "Usage: " << argv[0]
 		     << " <input_file> <output_file> "
-			"<sseq,qstart,qend,bitscore,qseq>"
+			"<sseq,qstart,qend,bitscore/evalue,qseq> "
+			"<bitscore(default)/evalue>\nthe column number starts "
+			"at 0"
 		     << endl;
 		return 1;
 	}
 
-	if (argc == 3 || argc == 4) {
+	if (argc <= 5 && argc >= 3) {
 		string in_name = argv[1];
 		string ot_name = argv[2];
 
