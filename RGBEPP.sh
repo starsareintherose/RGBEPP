@@ -6,12 +6,12 @@ pkgver=0.0.1
 DirRaw=00_raw
 DirQcTrim=01_fastp
 DirAssembly=02_spades
-DirFasta=03_contig
-DirMap=04_map
+DirFasta=03_assemblied
+DirMap=04_diamond
 DirPre=05_pre
 DirSplit=06_split
 DirMerge=07_merge
-DirAlign=08_align
+DirAlign=08_macse
 
 PathSplitfsata=~/Downloads/PhD/wes/splitfasta-cpp
 PathMacse=/usr/share/java/macse.jar
@@ -30,7 +30,7 @@ show_help(){
 #            echo -e "\t\t\t\t\t\t\t\033[0;31mR\033[0m\033[0;92mG\033[0m\033[0;94mB\033[0m \033[0;33mE\033[0m\033[0;94mP\033[0m\033[0;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
             echo -e "\t\t\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m\n\t\t\t\t\tReference Genome based Exon Phylogeny Pipeline\n \
 		       Version: $pkgver\n \
-		       License: GPL-3.0-only\n \
+		       License: GPL-2.0-only\n \
 		       Author: Guoyi Zhang\n \
                       -c\t--contigs\tcontings type: scaffolds or contigs\n \
                       -g\t--genes\t\tgene file path\n \
