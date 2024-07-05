@@ -80,7 +80,9 @@ void readInputFile(const string &filename,
 		while (iss >> fields[i] && i < 20) {
 			i++;
 		}
+		// subject seq id
 		string key = fields[1];
+		// bit score
 		double value = stod(fields[11]);
 		// Check if the key already exists in the map
 		if (max_map.find(key) != max_map.end()) {
@@ -106,6 +108,7 @@ void processMap(const map<string, pair<double, string>> &max_map,
 		while (iss >> fields[i] && i < 20) {
 			i++;
 		}
+		// check if qstart is larger than qend
 		if (stoi(fields[6]) > stoi(fields[7])) {
 			fields[17] = revcomp(fields[17]);
 		}

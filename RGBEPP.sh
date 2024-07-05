@@ -303,6 +303,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "pre" ]; then
 	check_var "ARG_L"
 	check_path "PathSortdiamond"
 
+	# extract fasta file from diamond balst style output
 	for (( i=0; i<$length_fn; i++ )); do	
 		$PathSortdiamond $DirMap/${full_names[$i]}.m8 $DirPre/${full_names[$i]}.fasta
 	done
@@ -316,9 +317,12 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "split" ]; then
 	check_var "ARG_L"
 	check_path "PathSplitfasta"
 
+	# split fasta into different folders based on sequence names
 	for (( i=0; i<$length_fn; i++ )); do
 		$PathSplitfsata ${full_names[$i]}.fasta
 	done
+
+	# mv to destdir
 	find . -mindepth 1 -maxdepth 1 -type d -exec mv {} ../$DirSplit \;
 	cd -
 fi
@@ -330,13 +334,18 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "merge" ]; then
 
 	mkdir -p $DirMerge
 	cd $DirSplit
+
+	# merge different taxa sequences in same gene to one fasta 
 	for (( i=0; i<$length_gn; i++ )) 
 	do
 		cd ${genes[$i]}
 		cat * > ../${genes[$i]}.fasta
 		cd ..
 	done
+
+	# mv to destdir
 	mv *.fasta ../$DirMerge
+
 	cd -
 	
 fi
@@ -354,6 +363,7 @@ if [ "$ARG_F" = "all" ] || [ "$ARG_F" = "align" ]; then
 	mkdir -p $DirAlign/AA && mkdir -p $DirAlign/NT
 	cd $DirMerge
 
+	# align the sequence based on codon
 	parallel -j $ARG_T java -jar $PathMacse -prog alignSequences -seq {}.fasta -out_AA ../$DirAlign/AA/{}.fasta -out_NT ../$DirAlign/NT/{}.fasta ::: "${genes[@]}"
 
 	cd -
