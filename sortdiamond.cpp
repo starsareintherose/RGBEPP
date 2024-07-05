@@ -210,7 +210,9 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	} else if (argc != 3) {
-		cerr << "Usage: " << argv[0]
+		cerr << "sortDiamond\nAuthor: Guoyi "
+			"Zhang\nLicense:GPL-2.0-only\nUsage: "
+		     << argv[0]
 		     << " <input_file> <output_file> "
 			"<sseq,qstart,qend,bitscore/evalue,qseq> "
 			"<bitscore(default)/evalue>\nthe column number starts "

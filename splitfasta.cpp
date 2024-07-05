@@ -71,8 +71,10 @@ void splitFasta(const std::string& input_fasta) {
 
 int main(int argc, char* argv[]) {
 	if (argc != 2) {
-		std::cerr << "Usage: " << argv[0] << " <input_fasta>"
-			  << std::endl;
+		std::cerr << "splitFasta\nAuthor: Guoyi "
+			     "Zhang\nLicense:GPL-2.0-only\nUsage: "
+			     "Usage: "
+			  << argv[0] << " <input_fasta>" << std::endl;
 		return 1;
 	}
 

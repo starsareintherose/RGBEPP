@@ -2,7 +2,7 @@
 
 ### Environment Setting
 
-pkgver=0.0.1
+pkgver=0.0.2
 
 DirHome=$(pwd)
 DirRaw=$DirHome/00_raw
