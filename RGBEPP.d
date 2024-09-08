@@ -165,25 +165,15 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam) {
 	string[] cmdFixmate = ["samtools", "fixmate", "-@", ARG_T.to!string, "-m", inputBam, "-"];
         string[] cmdSort = ["samtools", "sort", "-@", ARG_T.to!string, "-"];
         string[] cmdMarkdup = ["samtools", "markdup", "-@", ARG_T.to!string, "-", outputBam];
-	executeCommandPipe([cmdFixmate, cmdSort, cmdMarkdup]);	
+	executeCommandPipe([cmdFixmate, cmdSort, cmdMarkdup]);
+
+        string [] cmdIndexBam = ["samtools", "index", "-@", ARG_T.to!string, outputBam];
+        executeCommand(cmdIndexBam);
     }
 
     writeln("PostMapping::End");
 }
 
-void processIndexBam(string[] ARG_L, int ARG_T, string DirBam){
-
-    writeln("Indexing::Start");
-    //samtools index bam after markdup 
-    foreach (string file; ARG_L) {
-       string baseName = getBaseName(file);
-       string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
-
-       string [] cmdIndexBam = ["samtools", "index", "-@", ARG_T.to!string, inputBam];	
-       executeCommand(cmdIndexBam);	
-    }
-    writeln("Indexing::End");
-}
 
 void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirBam, string DirVcf, string DirMap) {
     writeln("VarCalling::Start");
@@ -210,16 +200,22 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirBam, stri
 
 }
 
-void processCon(string[] ARG_L, string ARG_R, int ARG_T, string DirVcf, string DirConsensus, string DirMap) {
+void processCon(string[] ARG_L, string ARG_R, int ARG_T, string[] ARG_G, string DirVcf, string DirConsensus, string DirMap) {
     createDir(DirConsensus);
+
+    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
+
+    createDir(DirConTaxa);
 
     string[] Refs = getRef(ARG_R, DirMap);
     string ARG_R_refer = Refs[1]; //reference_in fasta file
 
+    writeln("Consensus::Start");
+    // Extract fasta from vcf file
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
         string inputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
-        string outputFasta = DirConsensus ~ "/" ~ baseName ~ ".fasta";
+        string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
 
 	// index vcf.gz
 	string[] cmdIndexVcf = ["bcftools", "index", inputVcf];
@@ -229,11 +225,59 @@ void processCon(string[] ARG_L, string ARG_R, int ARG_T, string DirVcf, string D
         string[] cmdCon = ["bcftools", "consensus", "-f", ARG_R, inputVcf, "-o", outputFasta];
 	executeCommand(cmdCon);
     }
+    // Recombine the sequences based on genes
+    writeln("Consensus::End");
 }
 
+void processCombFasta(string[] ARG_L, string[] ARG_G, string DirConsensus) {
+
+    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
+    string DirConGene = DirConsensus ~ "/" ~ "gene";    
+    
+    // create a dictory
+    string[string] geneSequences;
+
+    // read first
+    foreach (file; ARG_L) {
+        string inputFile = DirConTaxa ~ "/" ~ file ~ ".fas";
+        if (!exists(inputFile)) {
+            writeln("File not found: ", inputFile);
+            continue;
+        }
+        string content = cast(string) readText(inputFile);
+        bool inSequence = false;
+        string currentGene;
+
+        foreach (line; content.splitter("\n")) {
+            if (line.empty) continue;
+
+            if (line[0] == '>') {
+                string header = line[1 .. $];
+                if (ARG_G.canFind(header)) {
+                    currentGene = header;
+                    geneSequences[currentGene] ~= ">" ~ file ~ "\n";
+                    inSequence = true;
+                } else {
+                    inSequence = false;
+                }
+            } else if (inSequence) {
+                geneSequences[currentGene] ~= line ~ "\n";
+            }
+        }
+    }
+    // write different files
+    foreach (gene; ARG_G) {
+        string outputFile = DirConGene ~ "/" ~ gene ~ ".fasta";
+        File output = File(outputFile, "a");
+        if (gene in geneSequences) {
+            output.write(geneSequences[gene]);
+        }
+    }
+
+}
 
 void main(string[] args) {
-    string pkgver = "0.0.2";
+    string pkgver = "0.0.3";
 
     string DirHome = std.file.getcwd();
     string DirRaw = DirHome ~ "/00_raw";
@@ -247,6 +291,7 @@ void main(string[] args) {
     string PathMacse = "/usr/share/java/macse.jar";
 
     int ARG_T = 8;
+    string[] ARG_G;
     string[] ARG_L;
     string ARG_F;
     string ARG_R;
@@ -258,12 +303,16 @@ void main(string[] args) {
 		    i++;
                     ARG_F = args[i];
                     break;
+		case "-g", "--gene":
+		    i++;
+                    ARG_G ~= readArrFromFile(args[i]);
+		    break;
                 case "-h", "--help":
                     show_help(pkgver);
                     return;
                 case "-l", "--list":
 		    i++;
-                    ARG_L ~= readArrFromFile( DirHome ~ "/" ~ args[i]);
+                    ARG_L ~= readArrFromFile(args[i]);
                     break;
                 case "-r", "--reference":
 		    i++;
@@ -300,18 +349,18 @@ void main(string[] args) {
         processPostMap(ARG_L, ARG_T, DirMap, DirBam);
     }
 
-    if (ARG_F == "all" || ARG_F == "indexbam") {
-        processIndexBam(ARG_L, ARG_T, DirBam);
-    }
-
     if (ARG_F == "all" || ARG_F == "varcall") {
         processVarCall(ARG_L, ARG_R, ARG_T, DirBam, DirVcf, DirMap);
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
-        processCon(ARG_L, ARG_R, ARG_T, DirVcf, DirConsensus,DirMap);
+        processCon(ARG_L, ARG_R, ARG_T, ARG_G, DirVcf, DirConsensus,DirMap);
+	processCombFasta(ARG_L, ARG_G, DirConsensus);
     }
 
+    if (ARG_F == "all" || ARG_F == "align") {
+
+    }
 
     writeln("RGBEPP::End");
 }
