@@ -7,6 +7,7 @@ import std.algorithm;
 import std.conv;
 import std.array;
 import std.path;
+import std.parallelism;
 
 void show_help(string pkgver) {
     writeln("\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m
@@ -14,17 +15,16 @@ void show_help(string pkgver) {
 	    Version: ", pkgver, "
 	    License: GPL-2.0-only
 	    Author: Guoyi Zhang
-	    -c\t--contigs\tcontigs type: scaffolds or contigs
-	    -g\t--genes\t\tgene file path
-	    -f\t--functions\tfunctions type (optional): all clean map postmap varcall consen
+	    -g\t--genes\t\tgene file path (optional, if -r is specified)
+	    -f\t--functions\tfunctions type (optional): all clean map 
+	      \t           \tpostmap varcall consen align
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
 	    -r\t--reference\treference genome path
 	    -t\t--threads\tthreads setting (optional, default 8 threads)
 	    --macse\t\tMacse jarfile path
-	    for example: ./your_program -c scaffolds -f all -l list -g genes \\ 
-	    -r reference.fasta \n");
+	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
 
 void createDir(string path) {
@@ -33,7 +33,7 @@ void createDir(string path) {
     }
 }
 
-void executeCommand(string[] cmd, string workingDir = "") {
+void executeCommand(string[] cmd) {
     auto process = spawnProcess(cmd);
 
     if (wait(process) != 0) {
@@ -292,6 +292,23 @@ void processCombFasta(string[] ARG_L, string[] ARG_G, string DirConsensus) {
 }
 
 void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string PathMacse){
+
+    string DirConGene = DirConsensus ~ "/" ~ "gene";
+    string DirAlignAA = DirAlign ~ "/" ~ "AA";
+    string DirAlignNT = DirAlign ~ "/" ~ "NT";
+
+    writeln("Align::Start");
+    createDir(DirAlign);
+    createDir(DirAlignAA);
+    createDir(DirAlignNT);
+    foreach (gene; parallel(ARG_G, 1)) {
+    	string inputFasta = DirConGene ~ "/" ~ gene ~ ".fasta";
+    	string outAA = DirAlignAA ~ "/" ~ gene ~ ".fasta";
+    	string outNT = DirAlignNT ~ "/" ~ gene ~ ".fasta";
+    	string[] cmd = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
+    	executeCommand(cmd);
+    }
+    writeln("Align::End");
 
 }
 
