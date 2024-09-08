@@ -94,7 +94,20 @@ string[] getRef(string ARG_R, string DirMap){
     return Refs;
 }
 
-void performQualityControl(string[] ARG_L, string DirRaw, string DirQcTrim, int ARG_T) {
+string[] getARG_G(string ARG_R){
+    string[] ARG_G;
+    // if ARG_G is empty
+    if (ARG_G.length == 0) {
+        auto file = File(ARG_R, "r");
+        ARG_G = file.byLine
+                .filter!(line => line.startsWith(">")) // flitering
+                .map!(line => line[1..$].idup) // convert to word
+                .array;
+    }
+    return ARG_G;
+}
+
+void processQualityControl(string[] ARG_L, string DirRaw, string DirQcTrim, int ARG_T) {
     // Prepare directory
     createDir(DirQcTrim);
 
@@ -117,7 +130,7 @@ void performQualityControl(string[] ARG_L, string DirRaw, string DirQcTrim, int 
 
 }
 
-void performMapping(string ARG_R, string[] ARG_L, string DirQcTrim, string DirMap, int ARG_T) {
+void processMapping(string ARG_R, string[] ARG_L, string DirQcTrim, string DirMap, int ARG_T) {
     writeln("Mapping::Start");
 
     // Prepare directory
@@ -233,13 +246,15 @@ void processCombFasta(string[] ARG_L, string[] ARG_G, string DirConsensus) {
 
     string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
     string DirConGene = DirConsensus ~ "/" ~ "gene";    
-    
+    createDir(DirConGene);
+
     // create a dictory
     string[string] geneSequences;
 
+    writeln("ConvertFasta::Start");
     // read first
     foreach (file; ARG_L) {
-        string inputFile = DirConTaxa ~ "/" ~ file ~ ".fas";
+        string inputFile = DirConTaxa ~ "/" ~ file ~ ".fasta";
         if (!exists(inputFile)) {
             writeln("File not found: ", inputFile);
             continue;
@@ -268,13 +283,18 @@ void processCombFasta(string[] ARG_L, string[] ARG_G, string DirConsensus) {
     // write different files
     foreach (gene; ARG_G) {
         string outputFile = DirConGene ~ "/" ~ gene ~ ".fasta";
-        File output = File(outputFile, "a");
+        File output = File(outputFile, "w");
         if (gene in geneSequences) {
             output.write(geneSequences[gene]);
         }
     }
+    writeln("ConvertFasta::End");
+}
+
+void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string PathMacse){
 
 }
+
 
 void main(string[] args) {
     string pkgver = "0.0.3";
@@ -335,14 +355,19 @@ void main(string[] args) {
         return;
     }
 
+    // get gene from ARG_R reference fasta
+    if (ARG_R.length != 0 ){
+    	ARG_G = getARG_G(ARG_R);
+    }
+    
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
-        performQualityControl(ARG_L, DirRaw, DirQcTrim, ARG_T);
+        processQualityControl(ARG_L, DirRaw, DirQcTrim, ARG_T);
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
-        performMapping(ARG_R, ARG_L, DirQcTrim, DirMap, ARG_T);
+        processMapping(ARG_R, ARG_L, DirQcTrim, DirMap, ARG_T);
     }
 
     if (ARG_F == "all" || ARG_F == "postmap") {
@@ -359,7 +384,7 @@ void main(string[] args) {
     }
 
     if (ARG_F == "all" || ARG_F == "align") {
-
+	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
     }
 
     writeln("RGBEPP::End");
