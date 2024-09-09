@@ -16,6 +16,7 @@ void show_help(string pkgver) {
 	    Version: ", pkgver, "
 	    License: GPL-2.0-only
 	    Author: Guoyi Zhang
+	    -c\t--config\tconfig file for software path (optional)
 	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -f\t--functions\tfunctions type (optional): all clean map 
 	      \t           \tpostmap varcall consen align
@@ -24,7 +25,12 @@ void show_help(string pkgver) {
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
 	    -r\t--reference\treference genome path
 	    -t\t--threads\tthreads setting (optional, default 8 threads)
-	    --macse\t\tMacse jarfile path
+	    --fastp\t\tFastp path (optional)
+	    --bowtie2\t\tBowtie2 path (optional)
+	    --samtools\t\tSamtools path (optional)
+	    --bcftools\t\tBcftools path (optional)
+	    --macse\t\tMacse jarfile path (optional)
+	    --trimal\t\tTrimal path (optional)
 	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
 
@@ -385,9 +391,29 @@ void main(string[] args) {
 		    i++;
                     ARG_T = args[i].to!int;
                     break;
+                case "--fastp":
+		    i++;
+                    PathFastp = args[i];
+                    break;
+                case "--bowtie2":
+		    i++;
+                    PathBowtie2 = args[i];
+                    break;
+                case "--samtools":
+		    i++;
+                    PathSamtools = args[i];
+                    break;
+                case "--bcftools":
+		    i++;
+                    PathBcftools = args[i];
+                    break;
                 case "--macse":
 		    i++;
                     PathMacse = args[i];
+                    break;
+                case "--trimal":
+		    i++;
+                    PathTrimal = args[i];
                     break;
                 default:
                     break;
