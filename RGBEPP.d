@@ -335,7 +335,40 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 
 }
 
+void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal){
+    createDir(DirAlign ~ "/" ~ "AA_out");
+    createDir(DirAlign ~ "/" ~ "NT_out");
+
+    string DirAA = DirAlign ~ "/" ~ "AA";
+    string DirNT = DirAlign ~ "/" ~ "NT";
+
+    // copy file firstly
+    foreach (gene; ARG_G){
+   	string inputFastaAA = DirAA ~ "/" ~ gene ~ ".fasta";
+	string outputFastaAA = DirAA ~ "_out" ~ "/" ~ gene ~ ".fasta";
+   	string inputFastaNT = DirNT ~ "/" ~ gene ~ ".fasta";
+	string outputFastaNT = DirNT ~ "_out" ~ "/" ~ gene ~ ".fasta";
+   
+        copy(inputFastaNT, outputFastaNT);
+        copy(inputFastaAA, outputFastaAA);  
+        // del stop codon
+        string[] cmdDelStop = [PathDelstop, outputFastaAA, outputFastaNT, "--delete"];
+        executeCommand(cmdDelStop);	
+    }
+
+    createDir(DirTrim);
+    foreach (gene; ARG_G){
+        string inputFastaAA = DirAA ~ "_out" ~ "/" ~ gene ~ ".fasta";
+	string inputBackTransNT = DirNT ~ "_out" ~ "/" ~ gene ~ ".fasta";
+	string outputFastaNT = DirTrim ~ "/" ~ gene ~ ".fasta";
+	
+   	string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-gappyout"];
+        executeCommand(cmdTrim);	
+    }
+}
+
 void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, string DirAssembly, string PathSpades){
+    writeln("Assembly::Start");
     createDir(DirAssembly);
     foreach (string file; ARG_L) {
        string baseName = getBaseName(file);
@@ -346,6 +379,7 @@ void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, str
        string[] cmdAssembly = [PathSpades, "--pe1-1", inputFileR1, "--pe1-2", inputFileR2, "-t", ARG_T.to!string, "-m", ARG_M.to!string, "--careful", "--phred-offset", "33", "-o", DirAss];
     	executeCommand(cmdAssembly);
     }
+    writeln("Assembly::End");
 }
 
 void main(string[] args) {
@@ -359,13 +393,15 @@ void main(string[] args) {
     string DirBam = DirHome ~ "/03_bam";
     string DirVcf = DirHome ~ "/04_vcf";
     string DirConsensus = DirHome ~ "/05_consen";
-    string DirAlign = DirHome ~ "/06_macse";
+    string DirAlign = DirHome ~ "/06_macse"; 
+    string DirTrim = DirHome ~ "/07_trimal"; 
 
     string PathFastp = "/usr/bin/fastp";
     string PathBowtie2 = "/usr/bin/bowtie2";
     string PathSamtools = "/usr/bin/samtools";
     string PathBcftools = "/usr/bin/bcftools";
     string PathMacse = "/usr/share/java/macse.jar";
+    string PathDelstop = "/usr/bin/delstop";
     string PathTrimal = "/usr/bin/trimal";
     string PathSpades = "/usr/bin/spades.py";
 
@@ -492,7 +528,9 @@ void main(string[] args) {
 	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
     }
 
-
+    if (ARG_F == "all" || ARG_F == "trim") {
+	processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal);
+    }
 
     writeln("RGBEPP::End");
 }

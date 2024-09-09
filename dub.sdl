@@ -1,0 +1,5 @@
+name "rgbepp"
+description "Reference Genome based Exon Phylogeny Pipeline"
+authors "Guoyi Zhang"
+copyright "Copyright © 2024, Guoyi Zhang"
+license "GPL-2.0-only"
