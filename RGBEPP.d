@@ -31,6 +31,7 @@ void show_help(string pkgver) {
 	    --bcftools\t\tBcftools path (optional)
 	    --macse\t\tMacse jarfile path (optional)
 	    --trimal\t\tTrimal path (optional)
+	    --spades\t\tSpades python path (optional)
 	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
 
@@ -114,7 +115,22 @@ string[] getARG_G(string ARG_R){
     return ARG_G;
 }
 
-void processQualityControl(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, string PathFastp) {
+string getValueFromConfig(string file, string key) {
+    string content = readText(file);
+    string value;
+    auto regex = regex(key ~ r"\s*=\s*(.+)");
+
+    foreach (line; content.splitter("\n")) {
+        if (auto match = matchFirst(line, regex)) {
+            value = match.captures[1];
+            break;
+        }
+    }
+
+    return value;
+}
+
+void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, string PathFastp) {
     // Prepare directory
     createDir(DirQcTrim);
     writeln("QcTrimming::Start");
@@ -319,21 +335,18 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 
 }
 
-string getValueFromConfig(string file, string key) {
-    string content = readText(file);
-    string value;
-    auto regex = regex(key ~ r"\s*=\s*(.+)");
-
-    foreach (line; content.splitter("\n")) {
-        if (auto match = matchFirst(line, regex)) {
-            value = match.captures[1];
-            break;
-        }
+void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, string DirAssembly, string PathSpades){
+    createDir(DirAssembly);
+    foreach (string file; ARG_L) {
+       string baseName = getBaseName(file);
+       string DirAss = DirAssembly ~ "/" ~ baseName;
+       createDir(DirAss);
+       string inputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
+       string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
+       string[] cmdAssembly = [PathSpades, "--pe1-1", inputFileR1, "--pe1-2", inputFileR2, "-t", ARG_T.to!string, "-m", ARG_M.to!string, "--careful", "--phred-offset", "33", "-o", DirAss];
+    	executeCommand(cmdAssembly);
     }
-
-    return value;
 }
-
 
 void main(string[] args) {
     string pkgver = "0.0.3";
@@ -342,6 +355,7 @@ void main(string[] args) {
     string DirRaw = DirHome ~ "/00_raw";
     string DirQcTrim = DirHome ~ "/01_fastp";
     string DirMap = DirHome ~ "/02_bowtie2";
+    string DirAssembly = DirHome ~ "/02_spades";
     string DirBam = DirHome ~ "/03_bam";
     string DirVcf = DirHome ~ "/04_vcf";
     string DirConsensus = DirHome ~ "/05_consen";
@@ -353,8 +367,10 @@ void main(string[] args) {
     string PathBcftools = "/usr/bin/bcftools";
     string PathMacse = "/usr/share/java/macse.jar";
     string PathTrimal = "/usr/bin/trimal";
+    string PathSpades = "/usr/bin/spades.py";
 
     int ARG_T = 8;
+    int ARG_M = 16;
     string[] ARG_G;
     string[] ARG_L;
     string ARG_C;
@@ -415,6 +431,10 @@ void main(string[] args) {
 		    i++;
                     PathTrimal = args[i];
                     break;
+                case "--spades":
+		    i++;
+                    PathSpades = args[i];
+                    break;
                 default:
                     break;
             }
@@ -444,7 +464,11 @@ void main(string[] args) {
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
-        processQualityControl(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
+        processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
+    }
+
+    if (ARG_F == "assembly") {
+	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
@@ -467,6 +491,8 @@ void main(string[] args) {
     if (ARG_F == "all" || ARG_F == "align") {
 	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
     }
+
+
 
     writeln("RGBEPP::End");
 }
