@@ -8,6 +8,7 @@ import std.conv;
 import std.array;
 import std.path;
 import std.parallelism;
+import std.regex;
 
 void show_help(string pkgver) {
     writeln("\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m
@@ -107,10 +108,10 @@ string[] getARG_G(string ARG_R){
     return ARG_G;
 }
 
-void processQualityControl(string[] ARG_L, string DirRaw, string DirQcTrim, int ARG_T) {
+void processQualityControl(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, string PathFastp) {
     // Prepare directory
     createDir(DirQcTrim);
-
+    writeln("QcTrimming::Start");
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
         string inputFileR1 = DirRaw ~ "/" ~ baseName ~ "_R1.fastq.gz";
@@ -121,30 +122,30 @@ void processQualityControl(string[] ARG_L, string DirRaw, string DirQcTrim, int 
         string htmlFile = DirQcTrim ~ "/" ~ baseName ~ ".html";
 
         // Perform quality control and trimming using external program `fastp`
-        string[] cmd = ["fastp", "-i", inputFileR1, "-I", inputFileR2,
+        string[] cmdQcTrim = [PathFastp, "-i", inputFileR1, "-I", inputFileR2,
                         "-o", outputFileR1, "-O", outputFileR2,
                         "-j", jsonFile, "-h", htmlFile,
                         "-w", ARG_T.to!string];
-        executeCommand(cmd);
+        executeCommand(cmdQcTrim);
     }
-
+    writeln("QcTrimming::End");
 }
 
-void processMapping(string ARG_R, string[] ARG_L, string DirQcTrim, string DirMap, int ARG_T) {
+void processMapping(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirMap, string PathBowtie2, string PathSamtools) {
     writeln("Mapping::Start");
 
     // Prepare directory
     createDir(DirMap);
 
     createDir(DirMap ~ "/index");
-
+    string PathBowtie2_build = PathBowtie2 ~ "-build";
     string[] Refs = getRef(ARG_R, DirMap);
     string ARG_R_index = Refs[0]; // bt2_index_base
     string ARG_R_refer = Refs[1]; //reference_in fasta file
 
     copy(ARG_R, ARG_R_refer);
 
-    string[] cmdBuildDB = ["bowtie2-build", "--threads", ARG_T.to!string, ARG_R_refer,  ARG_R_index];
+    string[] cmdBuildDB = [PathBowtie2_build, "--threads", ARG_T.to!string, ARG_R_refer,  ARG_R_index];
     executeCommand(cmdBuildDB);
 
     foreach (string file; ARG_L) {
@@ -154,9 +155,9 @@ void processMapping(string ARG_R, string[] ARG_L, string DirQcTrim, string DirMa
         string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
 
         // Perform mapping using Bowtie2 and converted to Bam using samtools
-        string[] cmdMap = ["bowtie2", "-x", ARG_R_index, "-1", inputFileR1, "-2", inputFileR2,
+        string[] cmdMap = [PathBowtie2, "-x", ARG_R_index, "-1", inputFileR1, "-2", inputFileR2,
                         "-p", ARG_T.to!string];
-        string[] cmdSam2Bam = ["samtools", "view", "-bS", "-@", ARG_T.to!string, "-o", outputBam];
+        string[] cmdSam2Bam = [PathSamtools, "view", "-bS", "-@", ARG_T.to!string, "-o", outputBam];
 
 	executeCommandPipe([cmdMap, cmdSam2Bam]);
 
@@ -164,7 +165,7 @@ void processMapping(string ARG_R, string[] ARG_L, string DirQcTrim, string DirMa
     writeln("Mapping::End");
 }
 
-void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam) {
+void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, string PathSamtools) {
 
     createDir(DirBam);
     writeln("PostMapping::Start");
@@ -175,12 +176,12 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam) {
         string outputBam = DirBam ~ "/" ~ baseName ~ ".bam";
 
         // Convert SAM to BAM, sort and remove duplicates using Samtools
-	string[] cmdFixmate = ["samtools", "fixmate", "-@", ARG_T.to!string, "-m", inputBam, "-"];
-        string[] cmdSort = ["samtools", "sort", "-@", ARG_T.to!string, "-"];
-        string[] cmdMarkdup = ["samtools", "markdup", "-@", ARG_T.to!string, "-", outputBam];
+	string[] cmdFixmate = [PathSamtools, "fixmate", "-@", ARG_T.to!string, "-m", inputBam, "-"];
+        string[] cmdSort = [PathSamtools, "sort", "-@", ARG_T.to!string, "-"];
+        string[] cmdMarkdup = [PathSamtools, "markdup", "-@", ARG_T.to!string, "-", outputBam];
 	executeCommandPipe([cmdFixmate, cmdSort, cmdMarkdup]);
 
-        string [] cmdIndexBam = ["samtools", "index", "-@", ARG_T.to!string, outputBam];
+        string [] cmdIndexBam = [PathSamtools, "index", "-@", ARG_T.to!string, outputBam];
         executeCommand(cmdIndexBam);
     }
 
@@ -188,7 +189,7 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam) {
 }
 
 
-void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirBam, string DirVcf, string DirMap) {
+void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, string DirBam, string DirVcf, string PathBcftools) {
     writeln("VarCalling::Start");
 
     string[] Refs = getRef(ARG_R, DirMap);
@@ -202,10 +203,10 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirBam, stri
         string outputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
 
         // Variant calling using bcftools
-        string[] cmdPileup = ["bcftools", "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", ARG_R_refer, inputBam];
-	string[] cmdVarCall = ["bcftools", "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
-	string[] cmdNorm = ["bcftools", "norm", "--threads", ARG_T.to!string, "-f", ARG_R_refer, "-Oz"];
-	string[] cmdFilter = ["bcftools", "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
+        string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", ARG_R_refer, inputBam];
+	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
+	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", ARG_R_refer, "-Oz"];
+	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }
 
@@ -213,7 +214,7 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirBam, stri
 
 }
 
-void processCon(string[] ARG_L, string ARG_R, int ARG_T, string[] ARG_G, string DirVcf, string DirConsensus, string DirMap) {
+void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string DirMap,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
     string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
@@ -231,18 +232,18 @@ void processCon(string[] ARG_L, string ARG_R, int ARG_T, string[] ARG_G, string 
         string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
 
 	// index vcf.gz
-	string[] cmdIndexVcf = ["bcftools", "index", inputVcf];
+	string[] cmdIndexVcf = [PathBcftools, "index", inputVcf];
 	executeCommand(cmdIndexVcf);
 	
         // Generate consensus sequences using bcftools
-        string[] cmdCon = ["bcftools", "consensus", "-f", ARG_R, inputVcf, "-o", outputFasta];
+        string[] cmdCon = [PathBcftools, "consensus", "-f", ARG_R, inputVcf, "-o", outputFasta];
 	executeCommand(cmdCon);
     }
     // Recombine the sequences based on genes
     writeln("Consensus::End");
 }
 
-void processCombFasta(string[] ARG_L, string[] ARG_G, string DirConsensus) {
+void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
 
     string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
     string DirConGene = DirConsensus ~ "/" ~ "gene";    
@@ -305,11 +306,26 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
     	string inputFasta = DirConGene ~ "/" ~ gene ~ ".fasta";
     	string outAA = DirAlignAA ~ "/" ~ gene ~ ".fasta";
     	string outNT = DirAlignNT ~ "/" ~ gene ~ ".fasta";
-    	string[] cmd = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
-    	executeCommand(cmd);
+    	string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
+    	executeCommand(cmdAlign);
     }
     writeln("Align::End");
 
+}
+
+string getValueFromConfig(string file, string key) {
+    string content = readText(file);
+    string value;
+    auto regex = regex(key ~ r"\s*=\s*(.+)");
+
+    foreach (line; content.splitter("\n")) {
+        if (auto match = matchFirst(line, regex)) {
+            value = match.captures[1];
+            break;
+        }
+    }
+
+    return value;
 }
 
 
@@ -325,17 +341,27 @@ void main(string[] args) {
     string DirConsensus = DirHome ~ "/05_consen";
     string DirAlign = DirHome ~ "/06_macse";
 
+    string PathFastp = "/usr/bin/fastp";
+    string PathBowtie2 = "/usr/bin/bowtie2";
+    string PathSamtools = "/usr/bin/samtools";
+    string PathBcftools = "/usr/bin/bcftools";
     string PathMacse = "/usr/share/java/macse.jar";
+    string PathTrimal = "/usr/bin/trimal";
 
     int ARG_T = 8;
     string[] ARG_G;
     string[] ARG_L;
+    string ARG_C;
     string ARG_F;
     string ARG_R;
    
     if (args.length > 1){
         foreach (int i; 0 .. cast(int)args.length) {
             switch (args[i]) {
+                case "-c", "--config":
+		    i++;
+                    ARG_C = args[i];
+                    break;
                 case "-f", "--functions":
 		    i++;
                     ARG_F = args[i];
@@ -376,28 +402,40 @@ void main(string[] args) {
     if (ARG_R.length != 0 ){
     	ARG_G = getARG_G(ARG_R);
     }
+   
+    // get pathXXX form config file
+    if (ARG_C != ""){
     
+        PathFastp = getValueFromConfig(ARG_C, "fastp");
+        PathBowtie2 = getValueFromConfig(ARG_C, "bowtie2");
+        PathSamtools = getValueFromConfig(ARG_C, "samtools");
+        PathBcftools = getValueFromConfig(ARG_C, "bcftools");
+        PathMacse = getValueFromConfig(ARG_C, "macse");
+        PathTrimal = getValueFromConfig(ARG_C, "trimal");
+
+    }
+
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
-        processQualityControl(ARG_L, DirRaw, DirQcTrim, ARG_T);
+        processQualityControl(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
-        processMapping(ARG_R, ARG_L, DirQcTrim, DirMap, ARG_T);
+        processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
     }
 
     if (ARG_F == "all" || ARG_F == "postmap") {
-        processPostMap(ARG_L, ARG_T, DirMap, DirBam);
+        processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools);
     }
 
     if (ARG_F == "all" || ARG_F == "varcall") {
-        processVarCall(ARG_L, ARG_R, ARG_T, DirBam, DirVcf, DirMap);
+        processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
-        processCon(ARG_L, ARG_R, ARG_T, ARG_G, DirVcf, DirConsensus,DirMap);
-	processCombFasta(ARG_L, ARG_G, DirConsensus);
+        processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+	processCombFasta(ARG_G, ARG_L, DirConsensus);
     }
 
     if (ARG_F == "all" || ARG_F == "align") {
