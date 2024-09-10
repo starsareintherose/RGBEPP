@@ -336,7 +336,7 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 }
 
 void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal){
-    writeln("Trimming::End");
+    writeln("Trimming::Start");
 
     string DirAA = DirAlign ~ "/" ~ "AA";
     string DirNT = DirAlign ~ "/" ~ "NT";
