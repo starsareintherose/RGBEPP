@@ -336,18 +336,22 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 }
 
 void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal){
-    createDir(DirAlign ~ "/" ~ "AA_out");
-    createDir(DirAlign ~ "/" ~ "NT_out");
+    writeln("Trimming::End");
 
     string DirAA = DirAlign ~ "/" ~ "AA";
     string DirNT = DirAlign ~ "/" ~ "NT";
+    string DirAA_out = DirAlign ~ "/" ~ "AA_out";
+    string DirNT_out = DirAlign ~ "/" ~ "NT_out";
 
+    createDir(DirAA_out);
+    createDir(DirNT_out);
+    
     // copy file firstly
     foreach (gene; ARG_G){
    	string inputFastaAA = DirAA ~ "/" ~ gene ~ ".fasta";
-	string outputFastaAA = DirAA ~ "_out" ~ "/" ~ gene ~ ".fasta";
+	string outputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
    	string inputFastaNT = DirNT ~ "/" ~ gene ~ ".fasta";
-	string outputFastaNT = DirNT ~ "_out" ~ "/" ~ gene ~ ".fasta";
+	string outputFastaNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
    
         copy(inputFastaNT, outputFastaNT);
         copy(inputFastaAA, outputFastaAA);  
@@ -356,15 +360,19 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
         executeCommand(cmdDelStop);	
     }
 
+    string DirTrimNT = DirTrim ~ "/" ~ "NT";
     createDir(DirTrim);
+    createDir(DirTrimNT);
     foreach (gene; ARG_G){
-        string inputFastaAA = DirAA ~ "_out" ~ "/" ~ gene ~ ".fasta";
-	string inputBackTransNT = DirNT ~ "_out" ~ "/" ~ gene ~ ".fasta";
-	string outputFastaNT = DirTrim ~ "/" ~ gene ~ ".fasta";
+        string inputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
+	string inputBackTransNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
+	string outputFastaNT = DirTrimNT ~ "/" ~ gene ~ ".fasta";
 	
-   	string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-gappyout"];
+   	string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
         executeCommand(cmdTrim);	
     }
+    writeln("Trimming::End");
+
 }
 
 void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, string DirAssembly, string PathSpades){
@@ -466,6 +474,10 @@ void main(string[] args) {
                 case "--trimal":
 		    i++;
                     PathTrimal = args[i];
+                    break;
+                case "--delstop":
+		    i++;
+                    PathDelstop = args[i];
                     break;
                 case "--spades":
 		    i++;
