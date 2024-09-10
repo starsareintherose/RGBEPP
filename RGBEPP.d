@@ -219,7 +219,7 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 
     createDir(DirVcf);
 
-    foreach (string file; ARG_L) {
+    foreach (string file; parallel(ARG_L, 1)) {
         string baseName = getBaseName(file);
         string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
         string outputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
