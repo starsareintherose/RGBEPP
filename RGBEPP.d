@@ -30,10 +30,32 @@ void show_help(string pkgver) {
 	    --samtools\t\tSamtools path (optional)
 	    --bcftools\t\tBcftools path (optional)
 	    --macse\t\tMacse jarfile path (optional)
+	    --delstop\t\tDelstop path (optional)
 	    --trimal\t\tTrimal path (optional)
 	    --spades\t\tSpades python path (optional)
 	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
+
+bool testJava() {
+    bool pass = true;
+    auto result = execute(["java", "-version"]);
+    if (result.status != 0) {
+	pass = false;
+	writeln("Error: Java is not found");
+    } 
+    return pass;
+}
+
+bool testFiles(string[] filePaths) {
+    bool pass = true;
+    foreach(filePath; filePaths){
+        if (!exists(filePath) && filePath != "") {
+            writeln("Error: " ~ filePath ~ " does not exists.");
+	    pass = false;
+        } 
+    }
+    return pass;
+} 
 
 void createDir(string path) {
     if (!exists(path)) {
@@ -505,6 +527,7 @@ void main(string[] args) {
         PathSamtools = getValueFromConfig(ARG_C, "samtools");
         PathBcftools = getValueFromConfig(ARG_C, "bcftools");
         PathMacse = getValueFromConfig(ARG_C, "macse");
+	PathDelstop = getValueFromConfig(ARG_C, "delstop");
         PathTrimal = getValueFromConfig(ARG_C, "trimal");
 
     }
@@ -512,36 +535,52 @@ void main(string[] args) {
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
-        processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
+	if(testFiles([PathFastp])){
+          processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
+	}
     }
 
     if (ARG_F == "assembly") {
-	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
+        if(testFiles([PathSpades])){
+	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades);
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
-        processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
+	if(testFiles([PathBowtie2, PathSamtools])){
+          processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "postmap") {
-        processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools);
+	if(testFiles([PathSamtools])){
+          processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools);
+        }
     }
 
     if (ARG_F == "all" || ARG_F == "varcall") {
-        processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
+	if(testFiles([PathBcftools])){
+            processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
-        processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
-	processCombFasta(ARG_G, ARG_L, DirConsensus);
+	if(testFiles([PathBcftools])){
+          processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+	  processCombFasta(ARG_G, ARG_L, DirConsensus);
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "align") {
-	processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
+	if(testFiles([PathMacse]) && testJava){
+	  processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "trim") {
-	processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal);
+	if(testFiles([PathTrimal])){
+	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal);
+	}
     }
 
     writeln("RGBEPP::End");
