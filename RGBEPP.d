@@ -347,7 +347,7 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
     createDir(DirNT_out);
     
     // copy file firstly
-    foreach (gene; ARG_G){
+    foreach (gene; parallel(ARG_G,1)){
    	string inputFastaAA = DirAA ~ "/" ~ gene ~ ".fasta";
 	string outputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
    	string inputFastaNT = DirNT ~ "/" ~ gene ~ ".fasta";
@@ -363,7 +363,7 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
     string DirTrimNT = DirTrim ~ "/" ~ "NT";
     createDir(DirTrim);
     createDir(DirTrimNT);
-    foreach (gene; ARG_G){
+    foreach (gene; parallel(ARG_G,1)){
         string inputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
 	string inputBackTransNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
 	string outputFastaNT = DirTrimNT ~ "/" ~ gene ~ ".fasta";
