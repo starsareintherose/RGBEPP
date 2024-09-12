@@ -298,7 +298,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
 
     writeln("ConvertFasta::Start");
     // read first
-    foreach (file; ARG_L) {
+    foreach (file; parallel(ARG_L,1)) {
         string inputFile = DirConTaxa ~ "/" ~ file ~ ".fasta";
         if (!exists(inputFile)) {
             writeln("File not found: ", inputFile);
@@ -326,7 +326,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
         }
     }
     // write different files
-    foreach (gene; ARG_G) {
+    foreach (gene; parallel(ARG_G,1)) {
         string outputFile = DirConGene ~ "/" ~ gene ~ ".fasta";
         File output = File(outputFile, "w");
         if (gene in geneSequences) {
