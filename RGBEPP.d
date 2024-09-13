@@ -259,6 +259,7 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 }
 
 void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string PathSamtools){
+    writeln("Consensus::Start");
     createDir(DirConsensus);
     foreach (string file; parallel(ARG_L,1)) {
 	    string baseName = getBaseName(file);
@@ -267,6 +268,7 @@ void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string Pa
 	    string [] cmdConsen1 = [PathSamtools, "consensus", "-f", "fasta", inputBam, "-o", outputFasta];
 	    executeCommand(cmdConsen1); 
     }
+    writeln("Consensus::End");
 }
 
 void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string DirMap,  string DirVcf, string DirConsensus, string PathBcftools) {
