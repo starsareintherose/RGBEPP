@@ -258,6 +258,17 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 
 }
 
+void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string PathSamtools){
+    createDir(DirConsensus);
+    foreach (string file; parallel(ARG_L,1)) {
+	    string baseName = getBaseName(file);
+	    string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
+	    string outputFasta = DirConsensus ~ "/" ~ baseName ~ ".fasta";
+	    string [] cmdConsen1 = [PathSamtools, "consensus", "-f", "fasta", inputBam, "-o", outputFasta];
+	    executeCommand(cmdConsen1); 
+    }
+}
+
 void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string DirMap,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
@@ -423,6 +434,7 @@ void main(string[] args) {
     string DirBam = DirHome ~ "/03_bam";
     string DirVcf = DirHome ~ "/04_vcf";
     string DirConsensus = DirHome ~ "/05_consen";
+    string DirConsensus1 = DirHome ~ "/05_consen1";
     string DirAlign = DirHome ~ "/06_macse"; 
     string DirTrim = DirHome ~ "/07_trimal"; 
 
@@ -560,13 +572,14 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "varcall") {
 	if(testFiles([PathBcftools])){
-            processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
+            //processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools])){
-          processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+          //processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+	  processConSam(ARG_L, DirBam, DirConsensus, PathSamtools);
 	  processCombFasta(ARG_G, ARG_L, DirConsensus);
 	}
     }
