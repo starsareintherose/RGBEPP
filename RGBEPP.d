@@ -180,7 +180,7 @@ void processMappingDenovo(string[] ARG_L, int ARG_T, string DirQcTrim, string Di
     createDir(DirMap);
     createDir(DirMap ~ "/index");
     string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
-    string DirAssemblyFas = DirAssemblySca ~ "/" ~ "fasta";
+    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
     createDir(DirAssemblySca);
     createDir(DirAssemblyFas);
     string ReferDmnd = DirAssemblySca ~ "/" ~ "Reference.dmnd";
@@ -196,7 +196,7 @@ void processMappingDenovo(string[] ARG_L, int ARG_T, string DirQcTrim, string Di
         string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
 	string outputBam = DirMap ~ "/" ~ baseName ~ ".bam";
 
-	string[] cmdDiamond = ["diamond", "blastx", "-d", ReferDmnd, "-q", inputFasta, "-o", inputM8, "--outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen gaps ppos qframe qseq"];
+	string[] cmdDiamond = ["diamond", "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8, "--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
 	string[] cmdSortDiamond = ["sortdiamond", inputM8, outputSort];
     	string[] cmdBuildDB = [PathBowtie2_build, "--threads", ARG_T.to!string, outputSort, outputIndex];
         string[] cmdMap = [PathBowtie2, "-x", outputIndex, "-1", inputFileR1, "-2", inputFileR2, "-p", ARG_T.to!string];
