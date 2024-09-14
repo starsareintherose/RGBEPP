@@ -175,6 +175,40 @@ void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, s
     writeln("QcTrimming::End");
 }
 
+void processMappingDenovo(string[] ARG_L, int ARG_T, string DirQcTrim, string DirAssembly, string DirMap, string PathBowtie2, string PathSamtools){
+    // Prepare directory
+    createDir(DirMap);
+    createDir(DirMap ~ "/index");
+    string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
+    string DirAssemblyFas = DirAssemblySca ~ "/" ~ "fasta";
+    createDir(DirAssemblySca);
+    createDir(DirAssemblyFas);
+    string ReferDmnd = DirAssemblySca ~ "/" ~ "Reference.dmnd";
+    string PathBowtie2_build = PathBowtie2 ~ "-build";
+
+    foreach (string file; ARG_L) {
+	string baseName = getBaseName(file);
+	string inputM8 = DirAssemblySca ~ "/" ~ baseName ~ ".m8";
+	string inputFasta = DirAssemblySca ~ "/" ~  baseName ~ ".fasta";
+	string outputSort = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
+	string outputIndex = DirAssemblyFas ~ "/" ~ baseName;
+        string inputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
+        string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
+	string outputBam = DirMap ~ "/" ~ baseName ~ ".bam";
+
+	string[] cmdDiamond = ["diamond", "blastx", "-d", ReferDmnd, "-q", inputFasta, "-o", inputM8, "--outfmt 6 qseqid sseqid pident length mismatch gapopen qstart qend sstart send evalue bitscore qlen slen gaps ppos qframe qseq"];
+	string[] cmdSortDiamond = ["sortdiamond", inputM8, outputSort];
+    	string[] cmdBuildDB = [PathBowtie2_build, "--threads", ARG_T.to!string, outputSort, outputIndex];
+        string[] cmdMap = [PathBowtie2, "-x", outputIndex, "-1", inputFileR1, "-2", inputFileR2, "-p", ARG_T.to!string];
+        string[] cmdSam2Bam = [PathSamtools, "view", "-bS", "-@", ARG_T.to!string, "-o", outputBam];
+	executeCommand(cmdDiamond);
+	executeCommand(cmdSortDiamond);
+    	executeCommand(cmdBuildDB);
+	executeCommandPipe([cmdMap, cmdSam2Bam]);
+    }
+
+}
+
 void processMapping(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirMap, string PathBowtie2, string PathSamtools) {
     writeln("Mapping::Start");
 
@@ -232,6 +266,29 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, str
     writeln("PostMapping::End");
 }
 
+void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string DirMap, string DirBam, string DirVcf, string PathBcftools) {
+    writeln("VarCalling::Start");
+
+    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
+    createDir(DirVcf);
+
+    foreach (string file; parallel(ARG_L, 1)) {
+        string baseName = getBaseName(file);
+        string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
+        string outputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
+	string referFasta = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
+        // Variant calling using bcftools
+        string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta, inputBam];
+	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
+	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta, "-Oz"];
+	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
+        executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
+    }
+
+    writeln("VarCalling::End");
+
+}
+
 
 void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, string DirBam, string DirVcf, string PathBcftools) {
     writeln("VarCalling::Start");
@@ -260,11 +317,15 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 
 void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string PathSamtools){
     writeln("Consensus::Start");
+
+    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
     createDir(DirConsensus);
+    createDir(DirConTaxa);
+
     foreach (string file; parallel(ARG_L,1)) {
 	    string baseName = getBaseName(file);
 	    string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
-	    string outputFasta = DirConsensus ~ "/" ~ baseName ~ ".fasta";
+	    string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
 	    string [] cmdConsen1 = [PathSamtools, "consensus", "-f", "fasta", inputBam, "-o", outputFasta];
 	    executeCommand(cmdConsen1); 
     }
@@ -311,7 +372,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
 
     writeln("ConvertFasta::Start");
     // read first
-    foreach (file; parallel(ARG_L,1)) {
+    foreach (file; ARG_L) {
         string inputFile = DirConTaxa ~ "/" ~ file ~ ".fasta";
         if (!exists(inputFile)) {
             writeln("File not found: ", inputFile);
@@ -339,7 +400,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
         }
     }
     // write different files
-    foreach (gene; parallel(ARG_G,1)) {
+    foreach (gene; ARG_G) {
         string outputFile = DirConGene ~ "/" ~ gene ~ ".fasta";
         File output = File(outputFile, "w");
         if (gene in geneSequences) {
@@ -562,7 +623,8 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "map") {
 	if(testFiles([PathBowtie2, PathSamtools])){
-          processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
+          //processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
+	  processMappingDenovo(ARG_L, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathSamtools);
 	}
     }
 
@@ -575,13 +637,15 @@ void main(string[] args) {
     if (ARG_F == "all" || ARG_F == "varcall") {
 	if(testFiles([PathBcftools])){
             //processVarCall(ARG_L, ARG_R, ARG_T, DirMap, DirBam, DirVcf, PathBcftools);
+	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools);
+
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools])){
-          //processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
-	  processConSam(ARG_L, DirBam, DirConsensus, PathSamtools);
+          processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+	  //processConSam(ARG_L, DirBam, DirConsensus, PathSamtools);
 	  processCombFasta(ARG_G, ARG_L, DirConsensus);
 	}
     }
