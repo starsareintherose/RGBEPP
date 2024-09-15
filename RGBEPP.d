@@ -332,6 +332,33 @@ void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string Pa
     writeln("Consensus::End");
 }
 
+void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssembly,  string DirVcf, string DirConsensus, string PathBcftools) {
+    createDir(DirConsensus);
+
+    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
+    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
+    createDir(DirConTaxa);
+
+    writeln("Consensus::Start");
+    // Extract fasta from vcf file
+    foreach (string file; ARG_L) {
+        string baseName = getBaseName(file);
+        string inputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
+        string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
+	string referFasta = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
+	// index vcf.gz
+	string[] cmdIndexVcf = [PathBcftools, "index", inputVcf];
+	executeCommand(cmdIndexVcf);
+	
+        // Generate consensus sequences using bcftools
+        string[] cmdCon = [PathBcftools, "consensus", "-f", referFasta, inputVcf, "-o", outputFasta];
+	executeCommand(cmdCon);
+    }
+    // Recombine the sequences based on genes
+    writeln("Consensus::End");
+}
+
+
 void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string DirMap,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
@@ -644,8 +671,9 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools])){
-          processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
+          //processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
 	  //processConSam(ARG_L, DirBam, DirConsensus, PathSamtools);
+	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); 
 	  processCombFasta(ARG_G, ARG_L, DirConsensus);
 	}
     }
