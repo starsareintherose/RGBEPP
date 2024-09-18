@@ -315,23 +315,6 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 
 }
 
-void processConSam(string[] ARG_L, string DirBam, string DirConsensus, string PathSamtools){
-    writeln("Consensus::Start");
-
-    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
-    createDir(DirConsensus);
-    createDir(DirConTaxa);
-
-    foreach (string file; parallel(ARG_L,1)) {
-	    string baseName = getBaseName(file);
-	    string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
-	    string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
-	    string [] cmdConsen1 = [PathSamtools, "consensus", "-f", "fasta", inputBam, "-o", outputFasta];
-	    executeCommand(cmdConsen1); 
-    }
-    writeln("Consensus::End");
-}
-
 void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssembly,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
@@ -672,7 +655,6 @@ void main(string[] args) {
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools])){
           //processCon(ARG_G, ARG_L, ARG_R, ARG_T, DirMap, DirVcf, DirConsensus, PathBcftools);
-	  //processConSam(ARG_L, DirBam, DirConsensus, PathSamtools);
 	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); 
 	  processCombFasta(ARG_G, ARG_L, DirConsensus);
 	}
