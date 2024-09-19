@@ -473,9 +473,12 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
         string inputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
 	string inputBackTransNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
 	string outputFastaNT = DirTrimNT ~ "/" ~ gene ~ ".fasta";
-	
-   	string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
-        executeCommand(cmdTrim);	
+	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
+            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
+            executeCommand(cmdTrim);
+        } else {
+            writeln("Skipping gene: ", gene, " as files are missing.");
+        }
     }
     writeln("Trimming::End");
 
