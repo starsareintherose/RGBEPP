@@ -175,15 +175,51 @@ void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, s
     writeln("QcTrimming::End");
 }
 
-void processMappingDenovo(string[] ARG_L, int ARG_T, string DirQcTrim, string DirAssembly, string DirMap, string PathBowtie2, string PathSamtools){
+void processAssemMv(string[] ARG_L,string DirAssembly){
+    // Prepare
+    string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
+    string DirAssemblyCont = DirAssembly ~ "/" ~ "contigs";
+    writeln("Assembly_Move::Start");
+    createDir(DirAssemblySca);
+    createDir(DirAssemblyCont);
+    foreach (string file; ARG_L ){
+        string baseName = getBaseName(file);
+	string DirAssemblyInd = DirAssembly ~ "/" ~ baseName;
+	string inputSca = DirAssemblyInd ~ "/" ~ "scaffolds.fasta";
+	string inputCont = DirAssemblyInd ~ "/" ~ "contigs.fasta";
+	string outputSca = DirAssemblySca ~ "/" ~  baseName ~ ".fasta";
+	string outputCont = DirAssemblyCont ~ "/" ~ baseName ~ ".fasta";
+	if (!exists(inputSca)) {
+            writeln("File not found: ", inputSca);
+            continue;
+        } else {
+	    copy(inputSca, outputSca);
+	}
+        if (!exists(inputCont)) {
+            writeln("File not found: ", inputCont);
+            continue;
+        } else {
+	    copy(inputCont, outputCont);
+	}
+    }
+    writeln("Assembly_Move::End");
+}
+
+void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirAssembly, string DirMap, string PathBowtie2, string PathSamtools){
     // Prepare directory
+    writeln("Mapping::Start");
     createDir(DirMap);
     createDir(DirMap ~ "/index");
     string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
     string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
-    createDir(DirAssemblySca);
     createDir(DirAssemblyFas);
-    string ReferDmnd = DirAssemblySca ~ "/" ~ "Reference.dmnd";
+    
+    string ARG_R_Base = getBaseName(ARG_R);
+    string ARG_R_Ref = DirAssemblyFas ~ "/" ~ ARG_R_Base ~ ".fasta";
+    copy(ARG_R, ARG_R_Ref);
+    string [] cmdDmMakeDB = [ "diamond", "makedb", "--db", "Reference", "--in", ARG_R_Ref];
+    executeCommand(cmdDmMakeDB);
+    string ReferDmnd = DirAssemblyFas ~ "/" ~ "Reference.dmnd";
     string PathBowtie2_build = PathBowtie2 ~ "-build";
 
     foreach (string file; ARG_L) {
@@ -207,6 +243,7 @@ void processMappingDenovo(string[] ARG_L, int ARG_T, string DirQcTrim, string Di
 	executeCommandPipe([cmdMap, cmdSam2Bam]);
     }
 
+    writeln("Mapping::End");
 }
 
 void processMapping(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirMap, string PathBowtie2, string PathSamtools) {
@@ -628,16 +665,18 @@ void main(string[] args) {
 	}
     }
 
-    if (ARG_F == "assembly") {
+    if (ARG_F == "all" || ARG_F == "assembly") {
         if(testFiles([PathSpades])){
 	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades);
+	  processAssemMv(ARG_L, DirAssembly);
 	}
+
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
 	if(testFiles([PathBowtie2, PathSamtools])){
           //processMapping(ARG_L, ARG_R, ARG_T, DirQcTrim, DirMap, PathBowtie2, PathSamtools);
-	  processMappingDenovo(ARG_L, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathSamtools);
+	  processMappingDenovo(ARG_L, ARG_R, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathSamtools);
 	}
     }
 
@@ -653,6 +692,7 @@ void main(string[] args) {
 	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools);
 
 	}
+
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
