@@ -59,6 +59,14 @@ bool testFiles(string[] filePaths) {
     return pass;
 } 
 
+bool testString(string input) {
+    return input.length != 0;
+}
+
+bool testStringArray(string[] input) {
+    return !input.empty;
+}
+
 void createDir(string path) {
     if (!exists(path)) {
         mkdir(path);
@@ -587,55 +595,68 @@ void main(string[] args) {
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
-	if(testFiles([PathFastp])){
-          processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp);
+	if(testFiles([PathFastp]) && testStringArray(ARG_L)){
+          processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp); //ARG_L
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "assembly") {
-        if(testFiles([PathSpades])){
-	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades);
+        if(testFiles([PathSpades]) && testStringArray(ARG_L)){
+	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades); //ARG_L
 	  processAssemMv(ARG_L, DirAssembly);
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
-
     }
 
     if (ARG_F == "all" || ARG_F == "map") {
-	if(testFiles([PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond])){
-	  processMappingDenovo(ARG_L, ARG_R, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond);
+	if(testFiles([PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond]) && testStringArray(ARG_L) && testString(ARG_R)  ){
+	  processMappingDenovo(ARG_L, ARG_R, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond); //ARG_L, ARG_R
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "postmap") {
-	if(testFiles([PathSamtools])){
-          processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools);
-        }
+	if(testFiles([PathSamtools]) && testStringArray(ARG_L) ){
+          processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools); //ARG_L
+        } else {
+	  throw new Exception("please confirm paramenters are correct"); 
+	}
     }
 
     if (ARG_F == "all" || ARG_F == "varcall") {
-	if(testFiles([PathBcftools])){
-	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools);
-
+	if(testFiles([PathBcftools]) && testStringArray(ARG_L) ){
+	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools); //ARG_L
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
-
     }
 
     if (ARG_F == "all" || ARG_F == "consen") {
-	if(testFiles([PathBcftools])){
-	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); 
-	  processCombFasta(ARG_G, ARG_L, DirConsensus);
+	if(testFiles([PathBcftools]) && testStringArray(ARG_L) && testStringArray(ARG_G) ){
+	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); //ARG_G ARG_L 
+	  processCombFasta(ARG_G, ARG_L, DirConsensus); //ARG_G ARG_L
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "align") {
-	if(testFiles([PathMacse]) && testJava){
-	  processAlign(ARG_G, DirConsensus, DirAlign, PathMacse);
+	if(testFiles([PathMacse]) && testJava && testStringArray(ARG_G)){
+	  processAlign(ARG_G, DirConsensus, DirAlign, PathMacse); //ARG_G
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
 
     if (ARG_F == "all" || ARG_F == "trim") {
-	if(testFiles([PathTrimal])){
-	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal);
+	if(testFiles([PathTrimal]) && testStringArray(ARG_G) ){
+	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal); //ARG_G
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
 
