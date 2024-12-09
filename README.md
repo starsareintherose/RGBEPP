@@ -31,28 +31,28 @@ Author: Guoyi Zhang
 ### Details
 
 ```
-	    -c	--config	config file for software path (optional)
-	    -g	--genes		gene file path (optional, if -r is specified)
-	    -f	--functions	functions type (optional): all clean assembly 
-	      	           	 map postmap varcall consen codon align trim
-	    -h	--help		show this information
-	    -l	--list		list file path
-	    -m	--memory	memory settings (optional, default 16 GB)
-	    -r	--reference	reference genome path
-	    -t	--threads	threads setting (optional, default 8 threads)
-	    --codon		Only use the codon region (optional)
-	    --fastp		Fastp path (optional)
-	    --spades		Spades python path (optional)
-	    --diamond		Diamond python path (optional)
-	    --sortdiamond	SortDiamond python path (optional)
-	    --bowtie2		Bowtie2 path (optional)
-	    --samtools		Samtools path (optional)
-	    --bcftools		Bcftools path (optional)
-	    --exonerate		Exonerate path (optional)
-	    --macse		Macse jarfile path (optional)
-	    --delstop		Delstop path (optional)
-	    --trimal		Trimal path (optional)
-	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
+    -c	--config	config file for software path (optional)
+    -g	--genes		gene file path (optional, if -r is specified)
+    -f	--functions	functions type (optional): all clean assembly 
+      	           	 map postmap varcall consen codon align trim
+    -h	--help		show this information
+    -l	--list		list file path
+    -m	--memory	memory settings (optional, default 16 GB)
+    -r	--reference	reference genome path
+    -t	--threads	threads setting (optional, default 8 threads)
+    --codon		Only use the codon region (optional)
+    --fastp		Fastp path (optional)
+    --spades		Spades python path (optional)
+    --diamond		Diamond python path (optional)
+    --sortdiamond	SortDiamond python path (optional)
+    --bowtie2		Bowtie2 path (optional)
+    --samtools		Samtools path (optional)
+    --bcftools		Bcftools path (optional)
+    --exonerate		Exonerate path (optional)
+    --macse		Macse jarfile path (optional)
+    --delstop		Delstop path (optional)
+    --trimal		Trimal path (optional)
+    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
 ```
 
 ### Directories Design
