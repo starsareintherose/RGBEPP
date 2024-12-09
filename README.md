@@ -67,7 +67,6 @@ Author: Guoyi Zhang
 ├── 05_vcf
 ├── 06_consen
 ├── 07_macse
-├── 08_macse
 ├── 08_trimal
 ├── list
 ├── gene
