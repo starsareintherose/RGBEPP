@@ -101,9 +101,6 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
 
 ### RGBEPP functions
 
-	      	           	 map postmap varcall consen codon align trim
-
-
  - Function clean: Quality control + trimming (fastp)
  - Function assembly: de novo assembly (spades)
  - Function map: local nucleic acids alignment search against amino acids subject sequence (diamond, sortdiamond), mapping raw reads to its scaffolds sequences (bowtie2) 
