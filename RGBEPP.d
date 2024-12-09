@@ -581,8 +581,8 @@ void main(string[] args) {
     string DirHome = std.file.getcwd();
     string DirRaw = buildPath(DirHome, "00_raw");
     string DirQcTrim = buildPath(DirHome, "01_fastp");
-    string DirMap = buildPath(DirHome, "02_bowtie2");
-    string DirAssembly = buildPath(DirHome, "03_spades");
+    string DirAssembly = buildPath(DirHome, "02_spades");
+    string DirMap = buildPath(DirHome, "03_bowtie2");
     string DirBam = buildPath(DirHome, "04_bam");
     string DirVcf = buildPath(DirHome, "05_vcf");
     string DirConsensus = buildPath(DirHome, "06_consen");
@@ -715,6 +715,16 @@ void main(string[] args) {
         PathMacse = getValueFromConfig(ARG_C, "macse");
 	PathDelstop = getValueFromConfig(ARG_C, "delstop");
         PathTrimal = getValueFromConfig(ARG_C, "trimal");
+        
+	DirRaw = getValueFromConfig(ARG_C, "raw_dir");
+        DirQcTrim = getValueFromConfig(ARG_C, "fastp_dir");
+        DirAssembly = getValueFromConfig(ARG_C, "spades_dir");
+        DirMap = getValueFromConfig(ARG_C, "bowtie2_dir");
+        DirBam = getValueFromConfig(ARG_C, "bam_dir");
+        DirVcf = getValueFromConfig(ARG_C, "vcf_dir");
+        DirConsensus = getValueFromConfig(ARG_C, "consen_dir");
+        DirAlign = getValueFromConfig(ARG_C, "macse_dir"); 
+        DirTrim = getValueFromConfig(ARG_C, "trimal_dir"); 
 
     }
 
