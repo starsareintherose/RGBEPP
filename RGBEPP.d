@@ -426,7 +426,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
     writeln("ConvertFasta::End");
 }
 
-void splitFasta(const string inputFasta) {
+void splitFasta(string inputFasta, string DirOut) {
     File infile;
     try {
         infile = File(inputFasta, "r");
@@ -449,7 +449,7 @@ void splitFasta(const string inputFasta) {
                 outfile.close();  // previous output file
             }
             seqName = cast(string)lineContent[1 .. $];  // Remove '>'
-            string outputFile = seqName ~ ".fasta";  // suitable to many os
+            string outputFile = buildPath(DirOut, seqName ~ ".fasta");  // suitable to many os
             outfile = File(outputFile, "w");
             outfile.writeln(">", getBaseName(inputFasta));
             // will enter sequence
@@ -480,21 +480,27 @@ void processCodon(string[] ARG_G, string ARG_R, string DirConsensus, string Path
     string ARG_R_Base = getBaseName(ARG_R);
     string ARG_R_Ref = buildPath(DirConsensus, ARG_R_Base ~ ".fasta");
     copy(ARG_R, ARG_R_Ref);
-    splitFasta(ARG_R_Ref);
+    splitFasta(ARG_R_Ref, DirConsensus);
 
-    moveDir(DirConGene, DirConGene ~ "_bak");
-
+    if (!exists(DirConGene ~ "_bak")) {
+        moveDir(DirConGene, DirConGene ~ "_bak");
+    }
+    if (!exists(DirConGene)) {
+        createDir(DirConGene);
+    }
+    
     writeln("GetCodon::Start");
 
     foreach (gene; ARG_G) {
 	string inputFile = buildPath(DirConGene ~ "_bak", gene ~ ".fasta");
         string outputFile = buildPath(DirConGene, gene ~ ".fasta");
 	string referFile = buildPath(DirConsensus, gene ~ ".fasta");
+
         if (!exists(inputFile)) {
             writeln("File not found: ", inputFile);
             continue;
         } else {
-            string[] cmdExonerate = [PathExonerate, inputFile, referFile, "--showalignment", "no", "--showvulgar", "no", "--showtargetgff", "no", "--ryo", "\">%qi\n%qcs\n\"", "--verbose", "0"];
+            string[] cmdExonerate = [PathExonerate, inputFile, referFile, "--showalignment", "no", "--showvulgar", "no", "--showtargetgff", "no", "--ryo", ">%qi\n%qcs\n", "--verbose", "0"];
 	    executeCommandToFile(cmdExonerate, outputFile);
 	}
 	std.file.remove(referFile);
@@ -692,7 +698,7 @@ void main(string[] args) {
     }
 
     // get gene from ARG_R reference fasta
-    if (ARG_R.length != 0 ){
+    if (ARG_R.length != 0 && ARG_R.length == 0 ){
     	ARG_G = getARG_G(ARG_R);
     }
    
