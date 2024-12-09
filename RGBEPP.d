@@ -586,9 +586,8 @@ void main(string[] args) {
     string DirBam = buildPath(DirHome, "04_bam");
     string DirVcf = buildPath(DirHome, "05_vcf");
     string DirConsensus = buildPath(DirHome, "06_consen");
-    string DirConsensus1 = buildPath(DirHome, "07_consen1");
-    string DirAlign = buildPath(DirHome, "08_macse"); 
-    string DirTrim = buildPath(DirHome, "09_trimal"); 
+    string DirAlign = buildPath(DirHome, "07_macse"); 
+    string DirTrim = buildPath(DirHome, "08_trimal"); 
 
     string PathFastp = "/usr/bin/fastp";
     string PathSpades = "/usr/bin/spades.py";
