@@ -25,13 +25,15 @@ void show_help(string pkgver) {
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
 	    -r\t--reference\treference genome path
 	    -t\t--threads\tthreads setting (optional, default 8 threads)
+	    --codon\t\tOnly use the codon region (optional)
 	    --fastp\t\tFastp path (optional)
 	    --spades\t\tSpades python path (optional)
 	    --diamond\t\tDiamond python path (optional)
-	    --sortdiamond\t\tSortDiamond python path (optional)
+	    --sortdiamond\tSortDiamond python path (optional)
 	    --bowtie2\t\tBowtie2 path (optional)
 	    --samtools\t\tSamtools path (optional)
 	    --bcftools\t\tBcftools path (optional)
+	    --exonerate\t\tExonerate path (optional)
 	    --macse\t\tMacse jarfile path (optional)
 	    --delstop\t\tDelstop path (optional)
 	    --trimal\t\tTrimal path (optional)
@@ -73,6 +75,15 @@ void createDir(string path) {
     }
 }
 
+void moveDir (string oldPath, string newPath) {
+    try {
+        rename(oldPath, newPath);
+        writeln("Directory renamed successfully.");
+    } catch (Exception e) {
+        writeln("Error renaming directory: ", e.msg);
+    }
+}
+
 void executeCommand(string[] cmd) {
     auto process = spawnProcess(cmd);
 
@@ -80,6 +91,27 @@ void executeCommand(string[] cmd) {
         writeln("Error executing command: ", cmd.join(" "));
     }
 }
+
+void executeCommandToFile(string[] cmd, string outputFile) {
+    // Create a pipe for the command's output
+    auto pipe = pipe();
+
+    // Spawn the process
+    auto pid = spawnProcess(cmd, stdin, pipe.writeEnd);
+
+    // Close the write end of the pipe to signal EOF
+    pipe.writeEnd.close();
+
+    // Read the output from the pipe
+    auto output = cast(string) pipe.readEnd.byChunk(4096).joiner.array;
+
+    // Wait for the process to finish
+    wait(pid);
+
+    // Write the output to the specified file
+    std.file.write(outputFile, cast(ubyte[])output);
+}
+
 
 void executeCommandPipe(string[][] cmds) {
 
@@ -128,7 +160,7 @@ string getBaseName(string ARG_R){
 
 string[] getRef(string ARG_R, string DirMap){
     string baseNameRef = getBaseName(ARG_R);
-    string ARG_R_index = DirMap ~ "/index/" ~ baseNameRef; // bt2_index_base
+    string ARG_R_index = buildPath(DirMap, "index",  baseNameRef); // bt2_index_base
     string ARG_R_refer = ARG_R_index ~ ".fasta"; //reference_in fasta file
     string[] Refs = [ARG_R_index, ARG_R_refer];
     return Refs;
@@ -168,12 +200,12 @@ void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, s
     writeln("QcTrimming::Start");
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
-        string inputFileR1 = DirRaw ~ "/" ~ baseName ~ "_R1.fastq.gz";
-        string inputFileR2 = DirRaw ~ "/" ~ baseName ~ "_R2.fastq.gz";
-        string outputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
-        string outputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
-        string jsonFile = DirQcTrim ~ "/" ~ baseName ~ ".json";
-        string htmlFile = DirQcTrim ~ "/" ~ baseName ~ ".html";
+        string inputFileR1 = buildPath(DirRaw, baseName ~ "_R1.fastq.gz");
+        string inputFileR2 = buildPath(DirRaw, baseName ~ "_R2.fastq.gz");
+        string outputFileR1 = buildPath(DirQcTrim, baseName ~ "_R1.fastq.gz");
+        string outputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
+        string jsonFile = buildPath(DirQcTrim, baseName ~ ".json");
+        string htmlFile = buildPath(DirQcTrim, baseName ~ ".html");
 
         // Perform quality control and trimming using external program `fastp`
         string[] cmdQcTrim = [PathFastp, "-i", inputFileR1, "-I", inputFileR2,
@@ -190,10 +222,10 @@ void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, str
     createDir(DirAssembly);
     foreach (string file; ARG_L) {
        string baseName = getBaseName(file);
-       string DirAss = DirAssembly ~ "/" ~ baseName;
+       string DirAss = buildPath(DirAssembly, baseName);
        createDir(DirAss);
-       string inputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
-       string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
+       string inputFileR1 = buildPath(DirQcTrim, baseName ~ "_R1.fastq.gz");
+       string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
        string[] cmdAssembly = [PathSpades, "--pe1-1", inputFileR1, "--pe1-2", inputFileR2, "-t", ARG_T.to!string, "-m", ARG_M.to!string, "--careful", "--phred-offset", "33", "-o", DirAss];
     	executeCommand(cmdAssembly);
     }
@@ -202,18 +234,18 @@ void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, str
 
 void processAssemMv(string[] ARG_L,string DirAssembly){
     // Prepare
-    string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
-    string DirAssemblyCont = DirAssembly ~ "/" ~ "contigs";
+    string DirAssemblySca = buildPath(DirAssembly, "scaffolds");
+    string DirAssemblyCont = buildPath(DirAssembly, "contigs");
     writeln("Assembly_Move::Start");
     createDir(DirAssemblySca);
     createDir(DirAssemblyCont);
     foreach (string file; ARG_L ){
         string baseName = getBaseName(file);
-	string DirAssemblyInd = DirAssembly ~ "/" ~ baseName;
-	string inputSca = DirAssemblyInd ~ "/" ~ "scaffolds.fasta";
-	string inputCont = DirAssemblyInd ~ "/" ~ "contigs.fasta";
-	string outputSca = DirAssemblySca ~ "/" ~  baseName ~ ".fasta";
-	string outputCont = DirAssemblyCont ~ "/" ~ baseName ~ ".fasta";
+	string DirAssemblyInd = buildPath(DirAssembly, baseName);
+	string inputSca = buildPath(DirAssemblyInd, "scaffolds.fasta");
+	string inputCont = buildPath(DirAssemblyInd, "contigs.fasta");
+	string outputSca = buildPath(DirAssemblySca,  baseName ~ ".fasta");
+	string outputCont = buildPath(DirAssemblyCont, baseName ~ ".fasta");
 	if (!exists(inputSca)) {
             writeln("File not found: ", inputSca);
             continue;
@@ -234,28 +266,28 @@ void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcT
     // Prepare directory
     writeln("Mapping::Start");
     createDir(DirMap);
-    createDir(DirMap ~ "/index");
-    string DirAssemblySca = DirAssembly ~ "/" ~ "scaffolds";
-    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
+    createDir(buildPath(DirMap, "index"));
+    string DirAssemblySca = buildPath(DirAssembly, "scaffolds");
+    string DirAssemblyFas = buildPath(DirAssembly, "fasta");
     createDir(DirAssemblyFas);
     
     string ARG_R_Base = getBaseName(ARG_R);
-    string ARG_R_Ref = DirAssemblyFas ~ "/" ~ ARG_R_Base ~ ".fasta";
+    string ARG_R_Ref = buildPath(DirAssemblyFas, ARG_R_Base ~ ".fasta");
     copy(ARG_R, ARG_R_Ref);
     string [] cmdDmMakeDB = [ PathDiamond, "makedb", "--db", "Reference", "--in", ARG_R_Ref];
     executeCommand(cmdDmMakeDB);
-    string ReferDmnd = DirAssemblyFas ~ "/" ~ "Reference.dmnd";
+    string ReferDmnd = buildPath(DirAssemblyFas, "Reference.dmnd");
     string PathBowtie2_build = PathBowtie2 ~ "-build";
 
     foreach (string file; ARG_L) {
 	string baseName = getBaseName(file);
-	string inputM8 = DirAssemblySca ~ "/" ~ baseName ~ ".m8";
-	string inputFasta = DirAssemblySca ~ "/" ~  baseName ~ ".fasta";
-	string outputSort = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
-	string outputIndex = DirAssemblyFas ~ "/" ~ baseName;
-        string inputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
-        string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
-	string outputBam = DirMap ~ "/" ~ baseName ~ ".bam";
+	string inputM8 = buildPath(DirAssemblySca, baseName ~ ".m8");
+	string inputFasta = buildPath(DirAssemblySca,  baseName ~ ".fasta");
+	string outputSort = buildPath(DirAssemblyFas, baseName ~ ".fasta");
+	string outputIndex = buildPath(DirAssemblyFas, baseName);
+        string inputFileR1 = buildPath(DirQcTrim, baseName ~ "_R1.fastq.gz");
+        string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
+	string outputBam = buildPath(DirMap, baseName ~ ".bam");
 
 	string[] cmdDiamond = [PathDiamond, "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8, "--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
 	string[] cmdSortDiamond = [PathSortDiamond, inputM8, outputSort];
@@ -278,8 +310,8 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, str
 
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
-        string inputBam = DirMap ~ "/" ~ baseName ~ ".bam";
-        string outputBam = DirBam ~ "/" ~ baseName ~ ".bam";
+        string inputBam = buildPath(DirMap, baseName ~ ".bam");
+        string outputBam = buildPath(DirBam, baseName ~ ".bam");
 
         // Convert SAM to BAM, sort and remove duplicates using Samtools
 	string[] cmdFixmate = [PathSamtools, "fixmate", "-@", ARG_T.to!string, "-m", inputBam, "-"];
@@ -297,14 +329,14 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, str
 void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string DirMap, string DirBam, string DirVcf, string PathBcftools) {
     writeln("VarCalling::Start");
 
-    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
+    string DirAssemblyFas = buildPath(DirAssembly, "fasta");
     createDir(DirVcf);
 
     foreach (string file; parallel(ARG_L, 1)) {
         string baseName = getBaseName(file);
-        string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
-        string outputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
-	string referFasta = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
+        string inputBam = buildPath(DirBam, baseName ~ ".bam");
+        string outputVcf = buildPath(DirVcf, baseName ~ ".vcf.gz");
+	string referFasta = buildPath(DirAssemblyFas, baseName ~ ".fasta");
         // Variant calling using bcftools
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta, inputBam];
 	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
@@ -321,17 +353,17 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
 void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssembly,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
-    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
-    string DirAssemblyFas = DirAssembly ~ "/" ~ "fasta";
+    string DirConTaxa = buildPath(DirConsensus, "taxa");
+    string DirAssemblyFas = buildPath(DirAssembly, "fasta");
     createDir(DirConTaxa);
 
     writeln("Consensus::Start");
     // Extract fasta from vcf file
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
-        string inputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
-        string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
-	string referFasta = DirAssemblyFas ~ "/" ~ baseName ~ ".fasta";
+        string inputVcf = buildPath(DirVcf, baseName ~ ".vcf.gz");
+        string outputFasta = buildPath(DirConTaxa, baseName ~ ".fasta");
+	string referFasta = buildPath(DirAssemblyFas, baseName ~ ".fasta");
 	// index vcf.gz
 	string[] cmdIndexVcf = [PathBcftools, "index", inputVcf];
 	executeCommand(cmdIndexVcf);
@@ -347,8 +379,8 @@ void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssem
 
 void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
 
-    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
-    string DirConGene = DirConsensus ~ "/" ~ "gene";    
+    string DirConTaxa = buildPath(DirConsensus, "taxa");
+    string DirConGene = buildPath(DirConsensus, "gene");    
     createDir(DirConGene);
 
     // create a dictory
@@ -357,7 +389,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
     writeln("ConvertFasta::Start");
     // read first
     foreach (file; ARG_L) {
-        string inputFile = DirConTaxa ~ "/" ~ file ~ ".fasta";
+        string inputFile = buildPath(DirConTaxa, file ~ ".fasta");
         if (!exists(inputFile)) {
             writeln("File not found: ", inputFile);
             continue;
@@ -385,7 +417,7 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
     }
     // write different files
     foreach (gene; ARG_G) {
-        string outputFile = DirConGene ~ "/" ~ gene ~ ".fasta";
+        string outputFile = buildPath(DirConGene, gene ~ ".fasta");
         File output = File(outputFile, "w");
         if (gene in geneSequences) {
             output.write(geneSequences[gene]);
@@ -394,20 +426,99 @@ void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
     writeln("ConvertFasta::End");
 }
 
+void splitFasta(const string inputFasta) {
+    File infile;
+    try {
+        infile = File(inputFasta, "r");
+    } catch (FileException e) {
+        stderr.writeln("Error: Unable to open input file ", inputFasta);
+        return;
+    }
+
+    string line;
+    string seqName;
+    File outfile;
+    bool in_sequence = false;
+
+    foreach (lineContent; infile.byLine()) {
+        if (lineContent.empty) continue;
+
+        if (lineContent[0] == '>') {
+            // New sequence header
+            if (in_sequence) {  // if found new sequence, close
+                outfile.close();  // previous output file
+            }
+            seqName = cast(string)lineContent[1 .. $];  // Remove '>'
+            string outputFile = seqName ~ ".fasta";  // suitable to many os
+            outfile = File(outputFile, "w");
+            outfile.writeln(">", getBaseName(inputFasta));
+            // will enter sequence
+            in_sequence = true;
+        } else if (in_sequence) {
+            // Inside sequence content
+            outfile.writeln(lineContent);
+        }
+    }
+
+    if (in_sequence) {
+        outfile.close();
+    }
+
+    if (infile.eof) {
+        writeln("Sequences have been split into individual files.");
+    } else {
+        stderr.writeln("Error occurred while reading file.");
+    }
+
+    infile.close();
+}
+
+void processCodon(string[] ARG_G, string ARG_R, string DirConsensus, string PathExonerate){
+
+    string DirConGene = buildPath(DirConsensus , "gene"); 
+
+    string ARG_R_Base = getBaseName(ARG_R);
+    string ARG_R_Ref = buildPath(DirConsensus, ARG_R_Base ~ ".fasta");
+    copy(ARG_R, ARG_R_Ref);
+    splitFasta(ARG_R_Ref);
+
+    moveDir(DirConGene, DirConGene ~ "_bak");
+
+    writeln("GetCodon::Start");
+
+    foreach (gene; ARG_G) {
+	string inputFile = buildPath(DirConGene ~ "_bak", gene ~ ".fasta");
+        string outputFile = buildPath(DirConGene, gene ~ ".fasta");
+	string referFile = buildPath(DirConsensus, gene ~ ".fasta");
+        if (!exists(inputFile)) {
+            writeln("File not found: ", inputFile);
+            continue;
+        } else {
+            string[] cmdExonerate = [PathExonerate, inputFile, referFile, "--showalignment", "no", "--showvulgar", "no", "--showtargetgff", "no", "--ryo", "\">%qi\n%qcs\n\"", "--verbose", "0"];
+	    executeCommandToFile(cmdExonerate, outputFile);
+	}
+	std.file.remove(referFile);
+    }
+    
+    rmdirRecurse(DirConGene ~ "_bak");
+
+    writeln("GetCodon::End");
+}
+
 void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string PathMacse){
 
-    string DirConGene = DirConsensus ~ "/" ~ "gene";
-    string DirAlignAA = DirAlign ~ "/" ~ "AA";
-    string DirAlignNT = DirAlign ~ "/" ~ "NT";
+    string DirConGene = buildPath(DirConsensus, "gene");
+    string DirAlignAA = buildPath(DirAlign, "AA");
+    string DirAlignNT = buildPath(DirAlign, "NT");
 
     writeln("Align::Start");
     createDir(DirAlign);
     createDir(DirAlignAA);
     createDir(DirAlignNT);
     foreach (gene; parallel(ARG_G, 1)) {
-    	string inputFasta = DirConGene ~ "/" ~ gene ~ ".fasta";
-    	string outAA = DirAlignAA ~ "/" ~ gene ~ ".fasta";
-    	string outNT = DirAlignNT ~ "/" ~ gene ~ ".fasta";
+    	string inputFasta = buildPath(DirConGene, gene ~ ".fasta");
+    	string outAA = buildPath(DirAlignAA, gene ~ ".fasta");
+    	string outNT = buildPath(DirAlignNT, gene ~ ".fasta");
     	string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
     	executeCommand(cmdAlign);
     }
@@ -418,20 +529,20 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal){
     writeln("Trimming::Start");
 
-    string DirAA = DirAlign ~ "/" ~ "AA";
-    string DirNT = DirAlign ~ "/" ~ "NT";
-    string DirAA_out = DirAlign ~ "/" ~ "AA_out";
-    string DirNT_out = DirAlign ~ "/" ~ "NT_out";
+    string DirAA = buildPath(DirAlign, "AA");
+    string DirNT = buildPath(DirAlign, "NT");
+    string DirAA_out = buildPath(DirAlign, "AA_out");
+    string DirNT_out = buildPath(DirAlign, "NT_out");
 
     createDir(DirAA_out);
     createDir(DirNT_out);
     
     // copy file firstly
     foreach (gene; parallel(ARG_G,1)){
-   	string inputFastaAA = DirAA ~ "/" ~ gene ~ ".fasta";
-	string outputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
-   	string inputFastaNT = DirNT ~ "/" ~ gene ~ ".fasta";
-	string outputFastaNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
+   	string inputFastaAA = buildPath(DirAA, gene ~ ".fasta");
+	string outputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
+   	string inputFastaNT = buildPath(DirNT, gene ~ ".fasta");
+	string outputFastaNT = buildPath(DirNT_out, gene ~ ".fasta");
    
         copy(inputFastaNT, outputFastaNT);
         copy(inputFastaAA, outputFastaAA);  
@@ -440,13 +551,13 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
         executeCommand(cmdDelStop);	
     }
 
-    string DirTrimNT = DirTrim ~ "/" ~ "NT";
+    string DirTrimNT = buildPath(DirTrim, "NT");
     createDir(DirTrim);
     createDir(DirTrimNT);
     foreach (gene; parallel(ARG_G,1)){
-        string inputFastaAA = DirAA_out ~ "/" ~ gene ~ ".fasta";
-	string inputBackTransNT = DirNT_out ~ "/" ~ gene ~ ".fasta";
-	string outputFastaNT = DirTrimNT ~ "/" ~ gene ~ ".fasta";
+        string inputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
+	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
+	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
 	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
             string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
             executeCommand(cmdTrim);
@@ -462,16 +573,16 @@ void main(string[] args) {
     string pkgver = "0.0.3";
 
     string DirHome = std.file.getcwd();
-    string DirRaw = DirHome ~ "/00_raw";
-    string DirQcTrim = DirHome ~ "/01_fastp";
-    string DirMap = DirHome ~ "/02_bowtie2";
-    string DirAssembly = DirHome ~ "/03_spades";
-    string DirBam = DirHome ~ "/04_bam";
-    string DirVcf = DirHome ~ "/05_vcf";
-    string DirConsensus = DirHome ~ "/06_consen";
-    string DirConsensus1 = DirHome ~ "/07_consen1";
-    string DirAlign = DirHome ~ "/08_macse"; 
-    string DirTrim = DirHome ~ "/09_trimal"; 
+    string DirRaw = buildPath(DirHome, "00_raw");
+    string DirQcTrim = buildPath(DirHome, "01_fastp");
+    string DirMap = buildPath(DirHome, "02_bowtie2");
+    string DirAssembly = buildPath(DirHome, "03_spades");
+    string DirBam = buildPath(DirHome, "04_bam");
+    string DirVcf = buildPath(DirHome, "05_vcf");
+    string DirConsensus = buildPath(DirHome, "06_consen");
+    string DirConsensus1 = buildPath(DirHome, "07_consen1");
+    string DirAlign = buildPath(DirHome, "08_macse"); 
+    string DirTrim = buildPath(DirHome, "09_trimal"); 
 
     string PathFastp = "/usr/bin/fastp";
     string PathSpades = "/usr/bin/spades.py";
@@ -480,6 +591,7 @@ void main(string[] args) {
     string PathBowtie2 = "/usr/bin/bowtie2";
     string PathSamtools = "/usr/bin/samtools";
     string PathBcftools = "/usr/bin/bcftools";
+    string PathExonerate = "/usr/bin/exonerate";
     string PathMacse = "/usr/share/java/macse.jar";
     string PathDelstop = "/usr/bin/delstop";
     string PathTrimal = "/usr/bin/trimal";
@@ -491,7 +603,8 @@ void main(string[] args) {
     string ARG_C;
     string ARG_F;
     string ARG_R;
-   
+    bool enableCodon = false;
+
     if (args.length > 1){
         foreach (int i; 0 .. cast(int)args.length) {
             switch (args[i]) {
@@ -522,6 +635,9 @@ void main(string[] args) {
 		    i++;
                     ARG_T = args[i].to!int;
                     break;
+                case "--codon":
+                    enableCodon = true;
+                    break;
                 case "--fastp":
 		    i++;
                     PathFastp = args[i];
@@ -549,6 +665,10 @@ void main(string[] args) {
                 case "--bcftools":
 		    i++;
                     PathBcftools = args[i];
+                    break;
+                case "--exonerate":
+		    i++;
+                    PathExonerate = args[i];
                     break;
                 case "--macse":
 		    i++;
@@ -586,6 +706,7 @@ void main(string[] args) {
         PathBowtie2 = getValueFromConfig(ARG_C, "bowtie2");
         PathSamtools = getValueFromConfig(ARG_C, "samtools");
         PathBcftools = getValueFromConfig(ARG_C, "bcftools");
+	PathExonerate = getValueFromConfig(ARG_C, "exonerate");
         PathMacse = getValueFromConfig(ARG_C, "macse");
 	PathDelstop = getValueFromConfig(ARG_C, "delstop");
         PathTrimal = getValueFromConfig(ARG_C, "trimal");
@@ -639,6 +760,14 @@ void main(string[] args) {
 	if(testFiles([PathBcftools]) && testStringArray(ARG_L) && testStringArray(ARG_G) ){
 	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); //ARG_G ARG_L 
 	  processCombFasta(ARG_G, ARG_L, DirConsensus); //ARG_G ARG_L
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
+	}
+    }
+
+    if (ARG_F == "all" && enableCodon) {
+	if(testFiles([PathExonerate]) && testStringArray(ARG_G) && testString(ARG_R)){
+	  processCodon(ARG_G, ARG_R, DirConsensus, PathExonerate); //ARG_G
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
