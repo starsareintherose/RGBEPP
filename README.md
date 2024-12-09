@@ -10,39 +10,49 @@ Author: Guoyi Zhang
 
 ### External software 
 
-- GNU Bash (provide cd)
-- GNU coreutils (provide cp mv mkdir mv)
-- GNU findutils (provide find)
 - fastp
 - spades.py (provided by spades)
 - diamond
+- bowtie2
+- samtools
+- bcftools
+- exonerate (optional, only for --codon)
 - java
 - macse (default recognized path: /usr/share/java/macse.jar)
-- GNU parallel
+- trimal
 
 ### Internal software
 
-- splitfasta (default recognized path: /usr/bin/splitfasta)
 - sortdiamond (default recognized path: /usr/bin/sortdiamond)
+- delstop (default recognized path: /usr/bin/delstop)
 
 ## Arguments
 
 ### Details
 
 ```
--c	--contigs	contings type: scaffolds or contigs
--g	--genes		gene file path
--f	--functions	functions type (optional): all clean 
-	  		assembly fasta map pre split merge align
--h	--help		show this information
--l	--list		list file path
--m	--memory	memory settings (optional, default 16 GB)
--r	--reference	reference genome path
--t	--threads	threads setting (optional, default 8 threads)
-	--macse		Macse jarfile path
-	--sortdiamond	sortdiamond file path
-	--splitfasta	splitfasta file path
-for example: bash RGBEPP.sh -c scaffolds -f all -l list -g genes -r reference.aa.fasta 
+	    -c	--config	config file for software path (optional)
+	    -g	--genes		gene file path (optional, if -r is specified)
+	    -f	--functions	functions type (optional): all clean assembly 
+	      	           	 map postmap varcall consen codon align trim
+	    -h	--help		show this information
+	    -l	--list		list file path
+	    -m	--memory	memory settings (optional, default 16 GB)
+	    -r	--reference	reference genome path
+	    -t	--threads	threads setting (optional, default 8 threads)
+	    --codon		Only use the codon region (optional)
+	    --fastp		Fastp path (optional)
+	    --spades		Spades python path (optional)
+	    --diamond		Diamond python path (optional)
+	    --sortdiamond	SortDiamond python path (optional)
+	    --bowtie2		Bowtie2 path (optional)
+	    --samtools		Samtools path (optional)
+	    --bcftools		Bcftools path (optional)
+	    --exonerate		Exonerate path (optional)
+	    --macse		Macse jarfile path (optional)
+	    --delstop		Delstop path (optional)
+	    --trimal		Trimal path (optional)
+	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
 ```
 
 ### Directories Design
@@ -52,16 +62,17 @@ for example: bash RGBEPP.sh -c scaffolds -f all -l list -g genes -r reference.aa
 ├── 00_raw
 ├── 01_fastp
 ├── 02_spades
-├── 03_assemblied
-├── 04_diamond
-├── 05_pre
-├── 06_split
-├── 07_merge
+├── 03_bowtie2
+├── 04_bam
+├── 05_vcf
+├── 06_consen
+├── 07_macse
 ├── 08_macse
-├── genes
+├── 08_trimal
 ├── list
+├── gene
 ├── reference.aa.fasta
-└── RGBEPP.sh
+└── RGBEPP
 ```
 
 Each directory corresponds to each function.
@@ -88,23 +99,44 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
 
 ## Process
 
-### RGBEPP.sh functions
+### RGBEPP functions
+
+	      	           	 map postmap varcall consen codon align trim
+
 
  - Function clean: Quality control + trimming (fastp)
  - Function assembly: de novo assembly (spades)
- - Function fasta: gather all fasta files from assembly directories (RGBEPP.sh)
- - Function map: local nucleic acids alignment search against amino acids subject sequence (diamond)
- - Function pre: generate corresponding sequences based on blast-styled output (sortdiamond) 
- - Function split: splitting fasta sequence to directories based on the reference genome (splitfasta)
- - Function merge: merge different taxa in the same reference exon gene to one fasta (RGBEPP.sh)
- - Function align: multiple sequence align based on Condon (macse)
+ - Function map: local nucleic acids alignment search against amino acids subject sequence (diamond, sortdiamond), mapping raw reads to its scaffolds sequences (bowtie2) 
+ - Function postmap: Sorting and marking the read read alignment (samtools)
+ - Function varcall: variant calling and filtering (bcftools) 
+ - Function consen: get consensus fasta file from vcf files (bcftools), then sort sequences based on gene name and taxa name (RGBEPP)
+ - Function codon (optional): only extract the exon sequence (exonerate)
+ - Function align: multiple sequence align based on condon (macse)
+ - Function trim: trimming based on codon (trimal, delstop)
+
+### Arguments reuqirements for functions
+
+| Functions | -g/--gene | -l/--list | -r/--reference |
+| --------- | --------- | --------- | -------------- | 
+| clean | | ✔ | |
+| assembly | | ✔ | |
+| map | | ✔ | ✔ |
+| postmap | | ✔ | |
+| varcall | | ✔ | |
+| consen | ✔ | ✔ | |
+| codon | ✔ | | ✔ |
+| align | ✔ | | |
+| trim | ✔ | | |
+
 
 ### Downstream process
 
  - concatenate sequences via SeqCombGo or catsequences or sequencematrix
  - coalescent / concatenated phylogeny
 
-# sortdiamond
+## Inner software
+
+### sortdiamond
 
 Usage: sortdiamond diamond_output.m8 generated.fasta sseq,qstart,qend,bitscore/evalue,qseq(optional, default 1,6,7,11,17, start from 0) bitscore/evalue(optional, default bitscore)
 
@@ -112,7 +144,7 @@ Default sseq is column 2, qstart is column 8, etc.
 
 Diamond default output format (--outfmt 6) does not contain qseq, you must custom the output format under output format 6. 
 
-# splitfasta
+### splitfasta
 
 Usage: splitfasta sample.fasta
 

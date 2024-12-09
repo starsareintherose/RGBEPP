@@ -18,8 +18,8 @@ void show_help(string pkgver) {
 	    Author: Guoyi Zhang
 	    -c\t--config\tconfig file for software path (optional)
 	    -g\t--genes\t\tgene file path (optional, if -r is specified)
-	    -f\t--functions\tfunctions type (optional): all clean map 
-	      \t           \tpostmap varcall consen codon align trim
+	    -f\t--functions\tfunctions type (optional): all clean assembly 
+	      \t           \t map postmap varcall consen codon align trim
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
