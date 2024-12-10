@@ -697,12 +697,16 @@ void main(string[] args) {
     }
 
     // get gene from ARG_R reference fasta
-    if (ARG_R.length != 0 && ARG_R.length == 0 ){
+    if (ARG_R.length != 0 && ARG_G.length == 0 ){
     	ARG_G = getARG_G(ARG_R);
     }
-   
+  
+    if (ARG_F.length == 0 ){
+    	ARG_F = "all";
+    }
+
     // get pathXXX form config file
-    if (ARG_C != ""){
+    if (ARG_C.length != 0){
     
         PathFastp = getValueFromConfig(ARG_C, "fastp");
 	PathSpades = getValueFromConfig(ARG_C, "spades");
