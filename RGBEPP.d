@@ -17,9 +17,9 @@ void show_help(string pkgver) {
 	    License: GPL-2.0-only
 	    Author: Guoyi Zhang
 	    -c\t--config\tconfig file for software path (optional)
-	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -f\t--functions\tfunctions type (optional): all clean assembly 
 	      \t           \t map postmap varcall consen codon align trim
+	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
@@ -632,6 +632,10 @@ void main(string[] args) {
 		    i++;
                     ARG_L ~= readArrFromFile(args[i]);
                     break;
+                case "-m", "--memory":
+		    i++;
+                    ARG_M = args[i].to!int;
+                    break;
                 case "-r", "--reference":
 		    i++;
                     ARG_R = args[i];
@@ -679,13 +683,13 @@ void main(string[] args) {
 		    i++;
                     PathMacse = args[i];
                     break;
-                case "--trimal":
-		    i++;
-                    PathTrimal = args[i];
-                    break;
                 case "--delstop":
 		    i++;
                     PathDelstop = args[i];
+                    break;
+                case "--trimal":
+		    i++;
+                    PathTrimal = args[i];
                     break;
                 default:
                     break;
