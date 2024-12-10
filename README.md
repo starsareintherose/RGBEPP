@@ -84,7 +84,7 @@ Each directory corresponds to each function.
 
 ```
 cd 00_raw
-ls | sed "s@_R[12].fastq.gz@@g" > ../list
+ls | sed "s@_R[12].fastq.gz@@g" | uniq > ../list
 cd ..
 ```
 
