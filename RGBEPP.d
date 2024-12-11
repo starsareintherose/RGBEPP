@@ -525,8 +525,13 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
     	string inputFasta = buildPath(DirConGene, gene ~ ".fasta");
     	string outAA = buildPath(DirAlignAA, gene ~ ".fasta");
     	string outNT = buildPath(DirAlignNT, gene ~ ".fasta");
-    	string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
-    	executeCommand(cmdAlign);
+	if (!exists(inputFasta)) {
+            writeln("File not found: ", inputFasta);
+            continue;
+        } else{
+    	    string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
+    	    executeCommand(cmdAlign);
+	}
     }
     writeln("Align::End");
 
@@ -549,9 +554,19 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 	string outputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
    	string inputFastaNT = buildPath(DirNT, gene ~ ".fasta");
 	string outputFastaNT = buildPath(DirNT_out, gene ~ ".fasta");
-   
-        copy(inputFastaNT, outputFastaNT);
-        copy(inputFastaAA, outputFastaAA);  
+  
+       	if (!exists(inputFastaNT)) {
+            writeln("File not found: ", inputFastaNT);
+            continue;
+        } else{	
+            copy(inputFastaNT, outputFastaNT);
+	}
+	if (!exists(inputFastaAA)) {
+            writeln("File not found: ", inputFastaAA);
+            continue;
+        } else{
+            copy(inputFastaAA, outputFastaAA);
+	}  
         // del stop codon
         string[] cmdDelStop = [PathDelstop, outputFastaAA, outputFastaNT, "--delete"];
         executeCommand(cmdDelStop);	
