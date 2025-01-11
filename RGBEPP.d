@@ -340,7 +340,7 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
         // Variant calling using bcftools
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta, inputBam];
 	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
-	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta, "-Oz"];
+	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta, "--check-ref", "s", "-Oz"];
 	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }

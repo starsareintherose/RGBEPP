@@ -396,7 +396,7 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
         // Variant calling using bcftools
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", ARG_R_refer, inputBam];
 	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
-	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", ARG_R_refer, "-Oz"];
+	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", ARG_R_refer, "--check-ref", "s", "-Oz"];
 	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }
