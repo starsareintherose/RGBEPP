@@ -288,7 +288,7 @@ void processMapping(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, s
     // Prepare directory
     createDir(DirMap);
 
-    createDir(DirMap ~ "/index");
+    createDir(buildPath(DirMap, "index"));
     string PathBowtie2_build = PathBowtie2 ~ "-build";
     string[] Refs = getRef(ARG_R, DirMap);
     string ARG_R_index = Refs[0]; // bt2_index_base
@@ -301,9 +301,9 @@ void processMapping(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, s
 
     foreach (string file; ARG_L) {
         string baseName = baseName(file, ".fastq.gz");
-        string outputBam = DirMap ~ "/" ~ baseName ~ ".bam";
-        string inputFileR1 = DirQcTrim ~ "/" ~ baseName ~ "_R1.fastq.gz";
-        string inputFileR2 = DirQcTrim ~ "/" ~ baseName ~ "_R2.fastq.gz";
+        string outputBam = buildPath(DirMap, baseName ~ ".bam");
+        string inputFileR1 = buildPath(DirQcTrim, baseName ~ "_R1.fastq.gz");
+        string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
 
         // Perform mapping using Bowtie2 and converted to Bam using samtools
         string[] cmdMap = [PathBowtie2, "-x", ARG_R_index, "-1", inputFileR1, "-2", inputFileR2,
@@ -390,8 +390,8 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
 
     foreach (string file; parallel(ARG_L, 1)) {
         string baseName = getBaseName(file);
-        string inputBam = DirBam ~ "/" ~ baseName ~ ".bam";
-        string outputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
+        string inputBam = buildPath(DirBam, baseName ~ ".bam");
+        string outputVcf = buildPath(DirVcf, baseName ~ ".vcf.gz");
 
         // Variant calling using bcftools
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", ARG_R_refer, inputBam];
@@ -431,7 +431,7 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
 void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string DirMap,  string DirVcf, string DirConsensus, string PathBcftools) {
     createDir(DirConsensus);
 
-    string DirConTaxa = DirConsensus ~ "/" ~ "taxa";
+    string DirConTaxa = buildPath(DirConsensus, "taxa");
 
     createDir(DirConTaxa);
 
@@ -442,8 +442,8 @@ void processCon(string[] ARG_G, string[] ARG_L, string ARG_R, int ARG_T, string 
     // Extract fasta from vcf file
     foreach (string file; ARG_L) {
         string baseName = getBaseName(file);
-        string inputVcf = DirVcf ~ "/" ~ baseName ~ ".vcf.gz";
-        string outputFasta = DirConTaxa ~ "/" ~ baseName ~ ".fasta";
+        string inputVcf = buildPath(DirVcf, baseName ~ ".vcf.gz");
+        string outputFasta = buildPath(DirConTaxa, baseName ~ ".fasta");
 
 	// index vcf.gz
 	string[] cmdIndexVcf = [PathBcftools, "index", inputVcf];
