@@ -289,7 +289,7 @@ void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcT
         string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
 	string outputBam = buildPath(DirMap, baseName ~ ".bam");
 
-	string[] cmdDiamond = [PathDiamond, "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8, "--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
+	string[] cmdDiamond = [PathDiamond, "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8, "--ultra-sensitive", "--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
 	string[] cmdSortDiamond = [PathSortDiamond, inputM8, outputSort];
     	string[] cmdBuildDB = [PathBowtie2_build, "--threads", ARG_T.to!string, outputSort, outputIndex];
         string[] cmdMap = [PathBowtie2, "-x", outputIndex, "-1", inputFileR1, "-2", inputFileR2, "-p", ARG_T.to!string];
@@ -341,7 +341,7 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta, inputBam];
 	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
 	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta, "--check-ref", "s", "-Oz"];
-	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
+	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "-Oz", "-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }
 
@@ -580,7 +580,7 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
 	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
 	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
-            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
+            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-gt", "0.7"];
             executeCommand(cmdTrim);
         } else {
             writeln("Skipping gene: ", gene, " as files are missing.");

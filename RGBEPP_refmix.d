@@ -397,7 +397,7 @@ void processVarCall(string[] ARG_L, string ARG_R, int ARG_T, string DirMap, stri
         string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", ARG_R_refer, inputBam];
 	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
 	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", ARG_R_refer, "--check-ref", "s", "-Oz"];
-	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "--IndelGap", "5", "-Oz", "-o", outputVcf];
+	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "-Oz", "-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }
 
@@ -687,7 +687,7 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
 	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
 	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
-            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-automated1"];
+            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-gt", "0.7"];
             executeCommand(cmdTrim);
         } else {
             writeln("Skipping gene: ", gene, " as files are missing.");
