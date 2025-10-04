@@ -9,6 +9,7 @@ import std.array;
 import std.path;
 import std.parallelism;
 import std.regex;
+import std.string;
 
 void show_help(string pkgver) {
     writeln("\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m
@@ -182,11 +183,11 @@ string[] getARG_G(string ARG_R){
 string getValueFromConfig(string file, string key) {
     string content = readText(file);
     string value;
-    auto regex = regex(key ~ r"\s*=\s*(.+)");
+    auto regex = regex("^" ~ key ~ r"\s*=\s*(.+)");
 
     foreach (line; content.splitter("\n")) {
         if (auto match = matchFirst(line, regex)) {
-            value = match.captures[1];
+            value = match.captures[1].strip;;
             break;
         }
     }
@@ -194,7 +195,14 @@ string getValueFromConfig(string file, string key) {
     return value;
 }
 
-void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, string PathFastp) {
+
+string[] getValueArray(string value) {
+    return value.length
+        ? value.splitter(" ").filter!(a => a.length).array
+        : [];
+}
+
+void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, string PathFastp, string[] fastpParas) {
     // Prepare directory
     createDir(DirQcTrim);
     writeln("QcTrimming::Start");
@@ -211,13 +219,13 @@ void processQcTrim(string[] ARG_L, int ARG_T, string DirRaw, string DirQcTrim, s
         string[] cmdQcTrim = [PathFastp, "-i", inputFileR1, "-I", inputFileR2,
                         "-o", outputFileR1, "-O", outputFileR2,
                         "-j", jsonFile, "-h", htmlFile,
-                        "-w", ARG_T.to!string];
+                        "-w", ARG_T.to!string] ~ fastpParas;
         executeCommand(cmdQcTrim);
     }
     writeln("QcTrimming::End");
 }
 
-void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, string DirAssembly, string PathSpades){
+void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, string DirAssembly, string PathSpades, string[] spadesParas){
     writeln("Assembly::Start");
     createDir(DirAssembly);
     foreach (string file; ARG_L) {
@@ -226,7 +234,7 @@ void processAssembly(string[] ARG_L, int ARG_M, int ARG_T, string DirQcTrim, str
        createDir(DirAss);
        string inputFileR1 = buildPath(DirQcTrim, baseName ~ "_R1.fastq.gz");
        string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
-       string[] cmdAssembly = [PathSpades, "--pe1-1", inputFileR1, "--pe1-2", inputFileR2, "-t", ARG_T.to!string, "-m", ARG_M.to!string, "--careful", "--phred-offset", "33", "-o", DirAss];
+       string[] cmdAssembly = [PathSpades, "--pe1-1", inputFileR1, "--pe1-2", inputFileR2, "-t", ARG_T.to!string, "-m", ARG_M.to!string] ~ spadesParas ~ ["-o", DirAss];
     	executeCommand(cmdAssembly);
     }
     writeln("Assembly::End");
@@ -262,7 +270,7 @@ void processAssemMv(string[] ARG_L,string DirAssembly){
     writeln("Assembly_Move::End");
 }
 
-void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirAssembly, string DirMap, string PathBowtie2, string PathDiamond, string PathSamtools, string PathSortDiamond){
+void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcTrim, string DirAssembly, string DirMap, string PathBowtie2, string PathDiamond, string PathSamtools, string PathSortDiamond, string[] diamondMakedbParas, string[] diamondBlastxParas, string[] bowtie2BuildParas,  string[] bowtie2Paras, string[] samtoolsViewParas){
     // Prepare directory
     writeln("Mapping::Start");
     createDir(DirMap);
@@ -274,7 +282,7 @@ void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcT
     string ARG_R_Base = getBaseName(ARG_R);
     string ARG_R_Ref = buildPath(DirAssemblyFas, ARG_R_Base ~ ".fasta");
     copy(ARG_R, ARG_R_Ref);
-    string [] cmdDmMakeDB = [ PathDiamond, "makedb", "--db", "Reference", "--in", ARG_R_Ref];
+    string [] cmdDmMakeDB = [ PathDiamond, "makedb", "--db", "Reference", "--in", ARG_R_Ref] ~ diamondMakedbParas;
     executeCommand(cmdDmMakeDB);
     string ReferDmnd = buildPath(DirAssemblyFas, "Reference.dmnd");
     string PathBowtie2_build = PathBowtie2 ~ "-build";
@@ -289,11 +297,11 @@ void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcT
         string inputFileR2 = buildPath(DirQcTrim, baseName ~ "_R2.fastq.gz");
 	string outputBam = buildPath(DirMap, baseName ~ ".bam");
 
-	string[] cmdDiamond = [PathDiamond, "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8, "--ultra-sensitive", "--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
+	string[] cmdDiamond = [PathDiamond, "blastx", "-d", "Reference.dmnd", "-q", inputFasta, "-o", inputM8] ~ diamondBlastxParas ~ ["--outfmt", "6", "qseqid", "sseqid", "pident", "length", "mismatch", "gapopen", "qstart", "qend", "sstart", "send", "evalue", "bitscore", "qlen", "slen", "gaps", "ppos", "qframe", "qseq"];
 	string[] cmdSortDiamond = [PathSortDiamond, inputM8, outputSort];
     	string[] cmdBuildDB = [PathBowtie2_build, "--threads", ARG_T.to!string, outputSort, outputIndex];
         string[] cmdMap = [PathBowtie2, "-x", outputIndex, "-1", inputFileR1, "-2", inputFileR2, "-p", ARG_T.to!string];
-        string[] cmdSam2Bam = [PathSamtools, "view", "-bS", "-@", ARG_T.to!string, "-o", outputBam];
+        string[] cmdSam2Bam = [PathSamtools, "view", "-bS", "-@", ARG_T.to!string, "-o", outputBam] ~ samtoolsViewParas;
 	executeCommand(cmdDiamond);
 	executeCommand(cmdSortDiamond);
     	executeCommand(cmdBuildDB);
@@ -303,7 +311,7 @@ void processMappingDenovo(string[] ARG_L, string ARG_R, int ARG_T, string DirQcT
     writeln("Mapping::End");
 }
 
-void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, string PathSamtools) {
+void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, string PathSamtools, string[] samtoolsFixmateParas, string[] samtoolsSortParas, string[] samtoolsMarkdupParas, string[] samtoolsIndexParas) {
 
     createDir(DirBam);
     writeln("PostMapping::Start");
@@ -314,19 +322,19 @@ void processPostMap(string[] ARG_L, int ARG_T, string DirMap, string DirBam, str
         string outputBam = buildPath(DirBam, baseName ~ ".bam");
 
         // Convert SAM to BAM, sort and remove duplicates using Samtools
-	string[] cmdFixmate = [PathSamtools, "fixmate", "-@", ARG_T.to!string, "-m", inputBam, "-"];
-        string[] cmdSort = [PathSamtools, "sort", "-@", ARG_T.to!string, "-"];
-        string[] cmdMarkdup = [PathSamtools, "markdup", "-@", ARG_T.to!string, "-", outputBam];
+	string[] cmdFixmate = [PathSamtools, "fixmate", "-@", ARG_T.to!string, "-m", inputBam, ] ~ samtoolsFixmateParas ~ ["-"];
+        string[] cmdSort = [PathSamtools, "sort", "-@", ARG_T.to!string] ~ samtoolsSortParas ~ ["-"];
+        string[] cmdMarkdup = [PathSamtools, "markdup", "-@", ARG_T.to!string] ~ samtoolsMarkdupParas ~ ["-", outputBam];
 	executeCommandPipe([cmdFixmate, cmdSort, cmdMarkdup]);
 
-        string [] cmdIndexBam = [PathSamtools, "index", "-@", ARG_T.to!string, outputBam];
+        string [] cmdIndexBam = [PathSamtools, "index", "-@", ARG_T.to!string] ~ samtoolsIndexParas ~ [outputBam];
         executeCommand(cmdIndexBam);
     }
 
     writeln("PostMapping::End");
 }
 
-void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string DirMap, string DirBam, string DirVcf, string PathBcftools) {
+void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string DirMap, string DirBam, string DirVcf, string PathBcftools, string[] bcftoolsMpileupParas, string[] bcftoolsCallParas, string[] bcftoolsNormParas, string[] bcftoolsFilterParas) {
     writeln("VarCalling::Start");
 
     string DirAssemblyFas = buildPath(DirAssembly, "fasta");
@@ -338,10 +346,10 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
         string outputVcf = buildPath(DirVcf, baseName ~ ".vcf.gz");
 	string referFasta = buildPath(DirAssemblyFas, baseName ~ ".fasta");
         // Variant calling using bcftools
-        string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta, inputBam];
-	string[] cmdVarCall = [PathBcftools, "call", "-mv", "-Oz", "--threads", ARG_T.to!string];
-	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta, "--check-ref", "s", "-Oz"];
-	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "-Oz", "-o", outputVcf];
+        string[] cmdPileup = [PathBcftools, "mpileup", "-Oz", "--threads", ARG_T.to!string, "-f", referFasta] ~ bcftoolsMpileupParas ~ [inputBam];
+	string[] cmdVarCall = [PathBcftools, "call"] ~ bcftoolsCallParas ~ ["-Oz", "--threads", ARG_T.to!string];
+	string[] cmdNorm = [PathBcftools, "norm", "--threads", ARG_T.to!string, "-f", referFasta] ~ bcftoolsNormParas ~ ["-Oz"];
+	string[] cmdFilter = [PathBcftools, "filter", "--threads", ARG_T.to!string, "-Oz"] ~ bcftoolsFilterParas ~ ["-o", outputVcf];
         executeCommandPipe([cmdPileup, cmdVarCall, cmdNorm, cmdFilter]); 
     }
 
@@ -350,7 +358,7 @@ void processVarCallDenovo(string[] ARG_L, int ARG_T, string DirAssembly, string 
 }
 
 
-void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssembly,  string DirVcf, string DirConsensus, string PathBcftools) {
+void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssembly,  string DirVcf, string DirConsensus, string PathBcftools, string[] bcftoolsIndexParas, string[] bcftoolsConParas) {
     createDir(DirConsensus);
 
     string DirConTaxa = buildPath(DirConsensus, "taxa");
@@ -511,7 +519,7 @@ void processCodon(string[] ARG_G, string ARG_R, string DirConsensus, string Path
     writeln("GetCodon::End");
 }
 
-void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string PathMacse){
+void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string PathMacse, string[] macseParas){
 
     string DirConGene = buildPath(DirConsensus, "gene");
     string DirAlignAA = buildPath(DirAlign, "AA");
@@ -529,7 +537,7 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
             writeln("File not found: ", inputFasta);
             continue;
         } else{
-    	    string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ];
+    	    string[] cmdAlign = ["java", "-jar", PathMacse, "-prog", "alignSequences", "-seq" , inputFasta, "-out_AA", outAA, "-out_NT", outNT ] ~ macseParas;
     	    executeCommand(cmdAlign);
 	}
     }
@@ -537,7 +545,7 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 
 }
 
-void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal){
+void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal, string[] trimalParas){
     writeln("Trimming::Start");
 
     string DirAA = buildPath(DirAlign, "AA");
@@ -580,7 +588,7 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
 	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
 	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
-            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT, "-gt", "0.7"];
+            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT] ~ trimalParas;
             executeCommand(cmdTrim);
         } else {
             writeln("Skipping gene: ", gene, " as files are missing.");
@@ -615,6 +623,27 @@ void main(string[] args) {
     string PathMacse = "/usr/share/java/macse.jar";
     string PathDelstop = "/usr/bin/delstop";
     string PathTrimal = "/usr/bin/trimal";
+
+    string[] fastpParas = [];
+    string[] spadesParas = ["--careful", "--phred-offset", "33"];
+    string[] diamondMakedbParas = [];
+    string[] diamondBlastxParas = ["--ultra-sensitive"];
+    string[] bowtie2BuildParas = [];
+    string[] bowtie2Paras = [];
+    string[] samtoolsViewParas = [];
+    string[] samtoolsFixmateParas = [];
+    string[] samtoolsSortParas = [];
+    string[] samtoolsMarkdupParas = [];
+    string[] samtoolsIndexParas = [];
+    string[] bcftoolsMpileupParas = [];
+    string[] bcftoolsCallParas = ["-mv"];
+    string[] bcftoolsNormParas = ["--check-ref", "s"];
+    string[] bcftoolsFilterParas = [];
+    string[] bcftoolsIndexParas = [];
+    string[] bcftoolsConParas = [];
+    string[] exonerateParas = [];
+    string[] macseParas = [];
+    string[] trimalParas = ["-gt", "0.7"];
 
     int ARG_T = 8;
     int ARG_M = 16;
@@ -749,13 +778,33 @@ void main(string[] args) {
         DirAlign = getValueFromConfig(ARG_C, "macse_dir"); 
         DirTrim = getValueFromConfig(ARG_C, "trimal_dir"); 
 
+	fastpParas = getValueArray(getValueFromConfig(ARG_C, "fastp_paras"));
+	spadesParas = getValueArray(getValueFromConfig(ARG_C, "spades_paras"));
+	diamondMakedbParas = getValueArray(getValueFromConfig(ARG_C, "diamond_makedb_paras"));
+	diamondBlastxParas = getValueArray(getValueFromConfig(ARG_C, "diamond_blastx_paras"));
+	bowtie2BuildParas = getValueArray(getValueFromConfig(ARG_C, "bowtie2_build_paras"));
+	bowtie2Paras = getValueArray(getValueFromConfig(ARG_C, "bowtie2_paras"));
+	samtoolsViewParas = getValueArray(getValueFromConfig(ARG_C, "samtools_view_paras"));
+	samtoolsFixmateParas = getValueArray(getValueFromConfig(ARG_C, "samtools_fixmate_paras"));
+	samtoolsSortParas = getValueArray(getValueFromConfig(ARG_C, "samtools_sort_paras"));
+	samtoolsMarkdupParas = getValueArray(getValueFromConfig(ARG_C, "samtools_markdup_paras"));
+	samtoolsIndexParas = getValueArray(getValueFromConfig(ARG_C, "samtools_index_paras"));
+	bcftoolsMpileupParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_mpileup_paras"));
+	bcftoolsCallParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_call_paras"));
+	bcftoolsNormParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_norm_paras"));
+	bcftoolsFilterParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_filter_paras"));
+	bcftoolsIndexParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_index_paras"));
+	bcftoolsConParas = getValueArray(getValueFromConfig(ARG_C, "bcftools_consensus_paras"));
+	exonerateParas = getValueArray(getValueFromConfig(ARG_C, "exonerate_paras"));
+	macseParas = getValueArray(getValueFromConfig(ARG_C, "macse_paras"));
+	trimalParas = getValueArray(getValueFromConfig(ARG_C, "trimal_paras"));
     }
 
     writeln("RGBEPP::Start");
     // Perform steps based on provided function argument
     if (ARG_F == "all" || ARG_F == "clean") {
 	if(testFiles([PathFastp]) && testStringArray(ARG_L)){
-          processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp); //ARG_L
+          processQcTrim(ARG_L, ARG_T, DirRaw, DirQcTrim, PathFastp, fastpParas); //ARG_L
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -763,7 +812,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "assembly") {
         if(testFiles([PathSpades]) && testStringArray(ARG_L)){
-	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades); //ARG_L
+	  processAssembly(ARG_L, ARG_M, ARG_T, DirQcTrim, DirAssembly, PathSpades, spadesParas); //ARG_L
 	  processAssemMv(ARG_L, DirAssembly);
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
@@ -772,7 +821,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "map") {
 	if(testFiles([PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond]) && testStringArray(ARG_L) && testString(ARG_R)  ){
-	  processMappingDenovo(ARG_L, ARG_R, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond); //ARG_L, ARG_R
+	  processMappingDenovo(ARG_L, ARG_R, ARG_T, DirQcTrim, DirAssembly, DirMap, PathBowtie2, PathDiamond, PathSamtools, PathSortDiamond, diamondMakedbParas, diamondBlastxParas, bowtie2BuildParas, bowtie2Paras, samtoolsViewParas); //ARG_L, ARG_R
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -780,7 +829,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "postmap") {
 	if(testFiles([PathSamtools]) && testStringArray(ARG_L) ){
-          processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools); //ARG_L
+          processPostMap(ARG_L, ARG_T, DirMap, DirBam, PathSamtools, samtoolsFixmateParas, samtoolsSortParas, samtoolsMarkdupParas, samtoolsIndexParas); //ARG_L
         } else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -788,7 +837,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "varcall") {
 	if(testFiles([PathBcftools]) && testStringArray(ARG_L) ){
-	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools); //ARG_L
+	    processVarCallDenovo(ARG_L, ARG_T, DirAssembly, DirMap, DirBam, DirVcf, PathBcftools, bcftoolsMpileupParas, bcftoolsCallParas, bcftoolsNormParas, bcftoolsFilterParas); //ARG_L
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -796,7 +845,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools]) && testStringArray(ARG_L) && testStringArray(ARG_G) ){
-	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools); //ARG_G ARG_L 
+	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools, bcftoolsIndexParas, bcftoolsConParas); //ARG_G ARG_L 
 	  processCombFasta(ARG_G, ARG_L, DirConsensus); //ARG_G ARG_L
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
@@ -813,7 +862,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "align") {
 	if(testFiles([PathMacse]) && testJava && testStringArray(ARG_G)){
-	  processAlign(ARG_G, DirConsensus, DirAlign, PathMacse); //ARG_G
+	  processAlign(ARG_G, DirConsensus, DirAlign, PathMacse, macseParas); //ARG_G
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -821,7 +870,7 @@ void main(string[] args) {
 
     if (ARG_F == "all" || ARG_F == "trim") {
 	if(testFiles([PathTrimal]) && testStringArray(ARG_G) ){
-	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal); //ARG_G
+	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal, trimalParas); //ARG_G
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
