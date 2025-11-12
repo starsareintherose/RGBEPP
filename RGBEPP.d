@@ -373,11 +373,11 @@ void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssem
         string outputFasta = buildPath(DirConTaxa, baseName ~ ".fasta");
 	string referFasta = buildPath(DirAssemblyFas, baseName ~ ".fasta");
 	// index vcf.gz
-	string[] cmdIndexVcf = [PathBcftools, "index", inputVcf];
+	string[] cmdIndexVcf = [PathBcftools, "index"] ~ bcftoolsIndexParas ~ [inputVcf];
 	executeCommand(cmdIndexVcf);
 	
         // Generate consensus sequences using bcftools
-        string[] cmdCon = [PathBcftools, "consensus", "-f", referFasta, inputVcf, "-o", outputFasta];
+        string[] cmdCon = [PathBcftools, "consensus", "-f", referFasta] ~ bcftoolsConParas ~ [inputVcf, "-o", outputFasta];
 	executeCommand(cmdCon);
     }
     // Recombine the sequences based on genes
