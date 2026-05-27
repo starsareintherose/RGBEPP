@@ -25,6 +25,7 @@ Author: Guoyi Zhang
 
 - sortdiamond (default recognized path: /usr/bin/sortdiamond)
 - delstop (default recognized path: /usr/bin/delstop)
+- deltaxa (default recognized path: /usr/bin/deltaxa)
 
 ## Arguments
 
@@ -33,8 +34,8 @@ Author: Guoyi Zhang
 ```
     -c	--config	config file for software path (optional)
     -g	--genes		gene file path (optional, if -r is specified)
-    -f	--functions	functions type (optional): all clean assembly 
-      	           	 map postmap varcall consen codon align trim
+    -f	--functions	functions type (optional): all clean assembly map 
+      	           	postmap varcall consen codon align ortholog trim
     -h	--help		show this information
     -l	--list		list file path
     -m	--memory	memory settings (optional, default 16 GB)
@@ -51,6 +52,7 @@ Author: Guoyi Zhang
     --exonerate		Exonerate path (optional)
     --macse		Macse jarfile path (optional)
     --delstop		Delstop path (optional)
+    --deltaxa		Deltaxa path (optional)
     --trimal		Trimal path (optional)
     for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
 ```
@@ -108,6 +110,7 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
  - Function consen: get consensus fasta file from vcf files (bcftools), then sort sequences based on gene name and taxa name (RGBEPP)
  - Function codon (optional): only extract the exon sequence (exonerate)
  - Function align: multiple sequence align based on condon (macse)
+ - Function ortholog: remove paralog based on Reciprocal Best Hits (RBH, diamond) 
  - Function trim: trimming based on codon (trimal, delstop)
 
 ### Arguments reuqirements for functions
@@ -122,6 +125,7 @@ grep '>' Reference.fasta | sed "s@>@@g" > genes
 | consen | ✔ | ✔ | |
 | codon | ✔ | | ✔ |
 | align | ✔ | | |
+| ortholog | |  ✔ |  ✔ |
 | trim | ✔ | | |
 
 
@@ -152,4 +156,8 @@ Usage: `splitfasta sample.fasta`
 
 It always creates directories in the path that you run the splitfasta, and puts split fasta into the directory.
 
+### deltaxa
 
+`deltaxa <fasta> <taxa1> [taxa2 taxa3 ...]`
+
+It deletes the one or multiple sequences of one fasta file. 
