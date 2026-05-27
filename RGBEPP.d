@@ -19,8 +19,8 @@ void show_help(string pkgver) {
 	    License: GPL-2.0-only
 	    Author: Guoyi Zhang
 	    -c\t--config\tconfig file for software path (optional)
-	    -f\t--functions\tfunctions type (optional): all clean assembly 
-	      \t           \t map postmap varcall consen codon align trim
+	    -f\t--functions\tfunctions type (optional): all clean assembly map
+	      \t           \t postmap varcall consen codon align ortholog trim
 	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
@@ -38,6 +38,7 @@ void show_help(string pkgver) {
 	    --exonerate\t\tExonerate path (optional)
 	    --macse\t\tMacse jarfile path (optional)
 	    --delstop\t\tDelstop path (optional)
+            --deltaxa\t\tDeltaxa path (optional)
 	    --trimal\t\tTrimal path (optional)
 	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
@@ -545,59 +546,6 @@ void processAlign(string[] ARG_G, string DirConsensus, string DirAlign, string P
 
 }
 
-void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal, string[] trimalParas){
-    writeln("Trimming::Start");
-
-    string DirAA = buildPath(DirAlign, "AA");
-    string DirNT = buildPath(DirAlign, "NT");
-    string DirAA_out = buildPath(DirAlign, "AA_out");
-    string DirNT_out = buildPath(DirAlign, "NT_out");
-
-    createDir(DirAA_out);
-    createDir(DirNT_out);
-    
-    // copy file firstly
-    foreach (gene; parallel(ARG_G,1)){
-   	string inputFastaAA = buildPath(DirAA, gene ~ ".fasta");
-	string outputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
-   	string inputFastaNT = buildPath(DirNT, gene ~ ".fasta");
-	string outputFastaNT = buildPath(DirNT_out, gene ~ ".fasta");
-  
-       	if (!exists(inputFastaNT)) {
-            writeln("File not found: ", inputFastaNT);
-            continue;
-        } else{	
-            copy(inputFastaNT, outputFastaNT);
-	}
-	if (!exists(inputFastaAA)) {
-            writeln("File not found: ", inputFastaAA);
-            continue;
-        } else{
-            copy(inputFastaAA, outputFastaAA);
-	}  
-        // del stop codon
-        string[] cmdDelStop = [PathDelstop, outputFastaAA, outputFastaNT, "--delete"];
-        executeCommand(cmdDelStop);	
-    }
-
-    string DirTrimNT = buildPath(DirTrim, "NT");
-    createDir(DirTrim);
-    createDir(DirTrimNT);
-    foreach (gene; parallel(ARG_G,1)){
-        string inputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
-	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
-	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
-	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
-            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT] ~ trimalParas;
-            executeCommand(cmdTrim);
-        } else {
-            writeln("Skipping gene: ", gene, " as files are missing.");
-        }
-    }
-    writeln("Trimming::End");
-
-}
-
 void processReplaceQue(string DirAlign, string[] ARG_L, string strTaxa)
 {
     // replace questio with minus of fasta files in specific folder
@@ -630,7 +578,7 @@ void processCompareTSV(string[] ARG_L, string DirAlign, string strTaxa, string s
     };
     foreach (taxa; ARG_L)
     {
-	string fnameBase = taxa ~ ".fasta.tsv";
+	string fnameBase = taxa ~ ".tsv";
         string fname = buildPath(DirAlign, strTaxa, fnameBase);
         string displayName;
         File f = File(fname, "r");
@@ -701,28 +649,94 @@ void processMismatch(string strParalog, string PathDeltaxa, string DirAlign)
 void processOrtholog(string[] ARG_L, string ARG_R, string DirAlign, string PathDeltaxa, string PathDiamond,  string strParalog){
     string DirAlignTaxa = buildPath(DirAlign, "taxa"); 
 
-    processReplaceQue(DirAlignTaxa, ARG_L, "taxa");
-    
+    writeln("Preparing reference::Start");
+    processReplaceQue(DirAlign, ARG_L, "taxa");
+    writeln("Preparing reference::End");
+
+
+    writeln("Ortholog::Start");
     foreach (taxa; parallel(ARG_L, 1)) {
     	string inputFasta = buildPath(DirAlignTaxa, taxa ~ ".fasta");
 	string outputTSV = buildPath(DirAlignTaxa, taxa ~ ".tsv");
+	string ARG_R_Ref = buildPath(DirAlignTaxa, taxa);
+
 	if (!exists(inputFasta)) {
             writeln("File not found: ", inputFasta);
             continue;
         } else{
-    	    string[] cmdDmMakeDB2 = [PathDiamond, "makedb", "--db", taxa, "-in", inputFasta] ;
-	    string[] cmdDmBlastp = [PathDiamond, "-q", ARG_R, "--max-target-seqs", "1", "-d", taxa, "-o", outputTSV, "-f", "6", "sseqid", "qseqid"];
+    	    string[] cmdDmMakeDB2 = [PathDiamond, "makedb", "--db", ARG_R_Ref, "--in", inputFasta] ;
+	    string[] cmdDmBlastp = [PathDiamond, "blastp", "-q", ARG_R, "--max-target-seqs", "1", "-d", ARG_R_Ref, "-o", outputTSV, "-f", "6", "sseqid", "qseqid"];
     	    executeCommand(cmdDmMakeDB2);
 	    executeCommand(cmdDmBlastp);
 	}
     }
+    writeln("Ortholog::End");
 
+    writeln("Getting paralog::Start");
     processCompareTSV( ARG_L, DirAlign, "taxa", strParalog);
+    writeln("Getting paralog::End");
+
+    writeln("Removing paralog::End");
     processMismatch(strParalog, PathDeltaxa, DirAlign);
+    writeln("Removing paralog::End");
 }
 
+void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string PathDelstop, string PathTrimal, string[] trimalParas){
+    writeln("Trimming::Start");
+
+    string DirAA = buildPath(DirAlign, "AA");
+    string DirNT = buildPath(DirAlign, "NT");
+    string DirAA_out = buildPath(DirAlign, "AA_out");
+    string DirNT_out = buildPath(DirAlign, "NT_out");
+
+    createDir(DirAA_out);
+    createDir(DirNT_out);
+    
+    // copy file firstly
+    foreach (gene; parallel(ARG_G,1)){
+   	string inputFastaAA = buildPath(DirAA, gene ~ ".fasta");
+	string outputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
+   	string inputFastaNT = buildPath(DirNT, gene ~ ".fasta");
+	string outputFastaNT = buildPath(DirNT_out, gene ~ ".fasta");
+  
+       	if (!exists(inputFastaNT)) {
+            writeln("File not found: ", inputFastaNT);
+            continue;
+        } else{	
+            copy(inputFastaNT, outputFastaNT);
+	}
+	if (!exists(inputFastaAA)) {
+            writeln("File not found: ", inputFastaAA);
+            continue;
+        } else{
+            copy(inputFastaAA, outputFastaAA);
+	}  
+        // del stop codon
+        string[] cmdDelStop = [PathDelstop, outputFastaAA, outputFastaNT, "--delete"];
+        executeCommand(cmdDelStop);	
+    }
+
+    string DirTrimNT = buildPath(DirTrim, "NT");
+    createDir(DirTrim);
+    createDir(DirTrimNT);
+    foreach (gene; parallel(ARG_G,1)){
+        string inputFastaAA = buildPath(DirAA_out, gene ~ ".fasta");
+	string inputBackTransNT = buildPath(DirNT_out, gene ~ ".fasta");
+	string outputFastaNT = buildPath(DirTrimNT, gene ~ ".fasta");
+	if (exists(inputFastaAA) && exists(inputBackTransNT)) {
+            string[] cmdTrim = [PathTrimal, "-in", inputFastaAA, "-backtrans", inputBackTransNT, "-out", outputFastaNT] ~ trimalParas;
+            executeCommand(cmdTrim);
+        } else {
+            writeln("Skipping gene: ", gene, " as files are missing.");
+        }
+    }
+    writeln("Trimming::End");
+
+}
+
+
 void main(string[] args) {
-    string pkgver = "0.0.3";
+    string pkgver = "0.0.4";
 
     string DirHome = std.file.getcwd();
     string DirRaw = buildPath(DirHome, "00_raw");
