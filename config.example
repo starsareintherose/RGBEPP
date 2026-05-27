@@ -8,6 +8,7 @@ bcftools			=	/usr/bin/bcftools
 exonerate			=	/usr/bin/exonerate
 macse				=	/usr/share/java/macse.jar
 delstop				=	/usr/bin/delstop
+deltaxa				=	/usr/bin/deltaxa
 trimal				=	/usr/bin/trimal
 raw_dir				=	00_raw
 fastp_dir			=	01_fastp
