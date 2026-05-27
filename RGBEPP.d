@@ -10,6 +10,7 @@ import std.path;
 import std.parallelism;
 import std.regex;
 import std.string;
+import std.csv;
 
 void show_help(string pkgver) {
     writeln("\t\t\t\t\t\033[0;47;31mR\033[0m\033[0;47;92mG\033[0m\033[0;47;94mB\033[0m\033[0;47m \033[0m\033[0;47;33mE\033[0m\033[0;47;94mP\033[0m\033[0;47;33mP\033[0m
@@ -384,11 +385,10 @@ void processConDenovo(string[] ARG_G, string[] ARG_L, int ARG_T, string DirAssem
     writeln("Consensus::End");
 }
 
+void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus, string strTaxa, string strGene) {
 
-void processCombFasta(string[] ARG_G, string[] ARG_L, string DirConsensus) {
-
-    string DirConTaxa = buildPath(DirConsensus, "taxa");
-    string DirConGene = buildPath(DirConsensus, "gene");    
+    string DirConTaxa = buildPath(DirConsensus, strTaxa);
+    string DirConGene = buildPath(DirConsensus, strGene);    
     createDir(DirConGene);
 
     // create a dictory
@@ -598,6 +598,129 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 
 }
 
+void processReplaceQue(string DirAlign, string[] ARG_L, string strTaxa)
+{
+    // replace questio with minus of fasta files in specific folder
+    foreach (taxa; ARG_L)
+    {
+	string fnameBase = taxa ~ ".fasta";
+	string fname = buildPath(DirAlign, strTaxa, fnameBase);
+        if (!fname.isFile) {
+	    writeln("File not found: ", fname);
+	    continue;
+	} else {
+            string text = readText(fname);
+            string textReplaced = text.replace("!", "-");
+
+            // Once change, write it
+            if (textReplaced != text)
+                std.file.write(fname, textReplaced);
+	}
+    }
+}
+
+void processCompareTSV(string[] ARG_L, string DirAlign, string strTaxa, string strParalog)
+{
+    // compare the tsv files and find the paralogous genes, then write to a csv file
+    File outfile;
+    outfile = File(strParalog, "w");
+
+    auto writeLine = (string s) {
+        outfile.writeln(s);
+    };
+    foreach (taxa; ARG_L)
+    {
+	string fnameBase = taxa ~ ".fasta.tsv";
+        string fname = buildPath(DirAlign, strTaxa, fnameBase);
+        string displayName;
+        File f = File(fname, "r");
+        foreach (line; f.byLine)
+        {
+            string s = line.idup.chomp;
+            if (s.length == 0) continue;
+
+            string[] cols = s.split('\t');
+            if (cols.length >= 2)
+            {
+                string col1 = cols[0];
+                string col2 = cols[1];
+                if (col1 != col2)
+                    writeLine(taxa ~ "," ~ col1 ~ "," ~ col2);
+            }
+        }
+    }
+    outfile.close();
+}
+
+void processMismatch(string strParalog, string PathDeltaxa, string DirAlign)
+{
+    // Delete the paralogs
+
+    // store information
+    alias TaxaSet = bool[string];
+    TaxaSet[string] geneToTaxaSet;
+
+    string text = readText(strParalog);
+
+    foreach (rowRange; csvReader!string(text))
+    {
+        string[] row = rowRange.array;
+        if (row.length < 2) continue;
+
+        string taxa = row[0].strip;
+        string gene = row[1].strip;
+
+        if (taxa.length == 0 || gene.length == 0) continue;
+
+        geneToTaxaSet[gene][taxa] = true; // deduplication
+    }
+
+    // run for everygene
+    immutable string[2] modes = ["NT", "AA"];
+    
+    foreach (gene, taxaSet; geneToTaxaSet)
+    {
+        string[] taxaList = taxaSet.byKey.array;
+        sort(taxaList);
+    
+        foreach (mode; modes)
+        {
+            string fastaPath = buildPath(DirAlign, mode, gene ~ ".fasta");
+    
+            // PathDeltaxa fastaPath taxa1 taxa2 ...
+            auto cmd = appender!(string[])();
+            cmd.put(PathDeltaxa);
+            cmd.put(fastaPath);
+            foreach (t; taxaList) cmd.put(t);
+    
+            executeCommand(cmd.data);
+        }
+    }
+}
+
+void processOrtholog(string[] ARG_L, string ARG_R, string DirAlign, string PathDeltaxa, string PathDiamond,  string strParalog){
+    string DirAlignTaxa = buildPath(DirAlign, "taxa"); 
+
+    processReplaceQue(DirAlignTaxa, ARG_L, "taxa");
+    
+    foreach (taxa; parallel(ARG_L, 1)) {
+    	string inputFasta = buildPath(DirAlignTaxa, taxa ~ ".fasta");
+	string outputTSV = buildPath(DirAlignTaxa, taxa ~ ".tsv");
+	if (!exists(inputFasta)) {
+            writeln("File not found: ", inputFasta);
+            continue;
+        } else{
+    	    string[] cmdDmMakeDB2 = [PathDiamond, "makedb", "--db", taxa, "-in", inputFasta] ;
+	    string[] cmdDmBlastp = [PathDiamond, "-q", ARG_R, "--max-target-seqs", "1", "-d", taxa, "-o", outputTSV, "-f", "6", "sseqid", "qseqid"];
+    	    executeCommand(cmdDmMakeDB2);
+	    executeCommand(cmdDmBlastp);
+	}
+    }
+
+    processCompareTSV( ARG_L, DirAlign, "taxa", strParalog);
+    processMismatch(strParalog, PathDeltaxa, DirAlign);
+}
+
 void main(string[] args) {
     string pkgver = "0.0.3";
 
@@ -622,6 +745,7 @@ void main(string[] args) {
     string PathExonerate = "/usr/bin/exonerate";
     string PathMacse = "/usr/share/java/macse.jar";
     string PathDelstop = "/usr/bin/delstop";
+    string PathDeltaxa = "/usr/bin/deltaxa";
     string PathTrimal = "/usr/bin/trimal";
 
     string[] fastpParas = [];
@@ -652,6 +776,9 @@ void main(string[] args) {
     string ARG_C;
     string ARG_F;
     string ARG_R;
+    string strTaxa = "taxa";
+    string strGene = "gene";
+    string strParalog = "paralog.csv"; 
     bool enableCodon = false;
 
     if (args.length > 1){
@@ -731,6 +858,10 @@ void main(string[] args) {
 		    i++;
                     PathDelstop = args[i];
                     break;
+                case "--deltaxa":
+		    i++;
+                    PathDeltaxa = args[i];
+                    break;
                 case "--trimal":
 		    i++;
                     PathTrimal = args[i];
@@ -766,6 +897,7 @@ void main(string[] args) {
 	PathExonerate = getValueFromConfig(ARG_C, "exonerate");
         PathMacse = getValueFromConfig(ARG_C, "macse");
 	PathDelstop = getValueFromConfig(ARG_C, "delstop");
+	PathDeltaxa = getValueFromConfig(ARG_C, "deltaxa");
         PathTrimal = getValueFromConfig(ARG_C, "trimal");
         
 	DirRaw = getValueFromConfig(ARG_C, "raw_dir");
@@ -846,7 +978,7 @@ void main(string[] args) {
     if (ARG_F == "all" || ARG_F == "consen") {
 	if(testFiles([PathBcftools]) && testStringArray(ARG_L) && testStringArray(ARG_G) ){
 	  processConDenovo(ARG_G, ARG_L, ARG_T, DirAssembly, DirVcf, DirConsensus, PathBcftools, bcftoolsIndexParas, bcftoolsConParas); //ARG_G ARG_L 
-	  processCombFasta(ARG_G, ARG_L, DirConsensus); //ARG_G ARG_L
+	  processCombFasta(ARG_G, ARG_L, DirConsensus, strTaxa, strGene); //ARG_G ARG_L
 	} else {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
@@ -868,6 +1000,15 @@ void main(string[] args) {
 	}
     }
 
+    if (ARG_F == "all" || ARG_F == "ortholog" ){
+	if(testFiles([PathDeltaxa]) && testFiles([PathDiamond]) && testStringArray(ARG_G) && testStringArray(ARG_L)){
+	  processCombFasta(ARG_L, ARG_G, DirAlign, "AA", strTaxa);
+	  processOrtholog(ARG_L, ARG_R, DirAlign, PathDeltaxa, PathDiamond, strParalog); //ARG_L ARG_R
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
+	}
+    }
+
     if (ARG_F == "all" || ARG_F == "trim") {
 	if(testFiles([PathTrimal]) && testStringArray(ARG_G) ){
 	  processTrimming(ARG_G, DirAlign, DirTrim, PathDelstop, PathTrimal, trimalParas); //ARG_G
@@ -875,6 +1016,8 @@ void main(string[] args) {
 	  throw new Exception("please confirm paramenters are correct"); 
 	}
     }
+
+
 
     writeln("RGBEPP::End");
 }
