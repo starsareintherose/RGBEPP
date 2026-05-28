@@ -5,6 +5,7 @@ import std.conv;
 import std.algorithm;
 import std.exception;
 import std.file;
+import std.path;
 
 struct GenePartition {
     string file;
@@ -148,7 +149,9 @@ void addGene(ref Supermatrix sm, GeneData gene)
 
     size_t start1 = sm.totalLen + 1;
     size_t end1 = sm.totalLen + gene.alnLen;
-    sm.partitions ~= GenePartition(gene.file, start1, end1, gene.alnLen);
+    string gn = baseName(gene.file);
+    string gnNoExt = stripExtension(gn); 
+    sm.partitions ~= GenePartition(gnNoExt, start1, end1, gene.alnLen);
     sm.totalLen += gene.alnLen;
 }
 
