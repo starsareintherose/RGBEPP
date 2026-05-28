@@ -19,8 +19,8 @@ void show_help(string pkgver) {
 	    License: GPL-2.0-only
 	    Author: Guoyi Zhang
 	    -c\t--config\tconfig file for software path (optional)
-	    -f\t--functions\tfunctions type (optional): all clean assembly map
-	      \t           \t postmap varcall consen codon align ortholog trim
+	    -f\t--functions\tfunctions type (optional): all clean assembly map postmap
+	      \t           \tvarcall consen codon align ortholog trim concat
 	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
@@ -40,6 +40,7 @@ void show_help(string pkgver) {
 	    --delstop\t\tDelstop path (optional)
             --deltaxa\t\tDeltaxa path (optional)
 	    --trimal\t\tTrimal path (optional)
+	    --concataln\t\tConcataln path (optional)
 	    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta \n");
 }
 
@@ -734,6 +735,24 @@ void processTrimming(string[] ARG_G, string DirAlign, string DirTrim, string Pat
 
 }
 
+void processConcat(string[] ARG_G, string DirTrim, string PathConcataln){
+    writeln("Concatenate::Start");
+    string PathOutput = buildPath(DirTrim, "concat.fasta");
+    string[] cmdConcat = [PathConcataln, PathOutput];
+
+     foreach (a; ARG_G)
+     {
+         auto fname = buildPath(DirTrim, "NT", a ~ ".fasta");
+	 if (exists(fname)) {
+             cmdConcat ~= fname;
+	 } else {
+            writeln("Skipping gene: ", a, " as files are missing.");
+	 }
+     }
+    executeCommand(cmdConcat);
+    writeln("Concatenate::End");
+}
+
 
 void main(string[] args) {
     string pkgver = "0.0.4";
@@ -761,6 +780,7 @@ void main(string[] args) {
     string PathDelstop = "/usr/bin/delstop";
     string PathDeltaxa = "/usr/bin/deltaxa";
     string PathTrimal = "/usr/bin/trimal";
+    string PathConcataln = "/usr/bin/concataln";
 
     string[] fastpParas = [];
     string[] spadesParas = ["--careful", "--phred-offset", "33"];
@@ -880,6 +900,10 @@ void main(string[] args) {
 		    i++;
                     PathTrimal = args[i];
                     break;
+                case "--concataln":
+		    i++;
+                    PathConcataln = args[i];
+                    break;
                 default:
                     break;
             }
@@ -913,6 +937,7 @@ void main(string[] args) {
 	PathDelstop = getValueFromConfig(ARG_C, "delstop");
 	PathDeltaxa = getValueFromConfig(ARG_C, "deltaxa");
         PathTrimal = getValueFromConfig(ARG_C, "trimal");
+        PathConcataln = getValueFromConfig(ARG_C, "concataln");
         
 	DirRaw = getValueFromConfig(ARG_C, "raw_dir");
         DirQcTrim = getValueFromConfig(ARG_C, "fastp_dir");
@@ -1031,7 +1056,13 @@ void main(string[] args) {
 	}
     }
 
-
+    if (ARG_F == "all" || ARG_F == "concat") {
+        if(testFiles([PathConcataln]) && testStringArray(ARG_G)){
+	  processConcat(ARG_G, DirTrim, PathConcataln);
+	} else {
+	  throw new Exception("please confirm paramenters are correct"); 
+	}
+    }
 
     writeln("RGBEPP::End");
 }

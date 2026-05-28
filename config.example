@@ -10,6 +10,7 @@ macse				=	/usr/share/java/macse.jar
 delstop				=	/usr/bin/delstop
 deltaxa				=	/usr/bin/deltaxa
 trimal				=	/usr/bin/trimal
+concataln			=	/usr/bin/concataln
 raw_dir				=	00_raw
 fastp_dir			=	01_fastp
 spades_dir			=	02_spades
