@@ -99,7 +99,7 @@ def helpMessage() {
       --*_paras       Tool-specific RGBEPP config parameters, e.g. --spades_paras "--careful --phred-offset 33"
 
     Example:
-      nextflow run . --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
+      nextflow run starsareintherose/RGBEPP --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
     """.stripIndent()
 }
 
@@ -544,7 +544,7 @@ workflow {
     }
 
     if (!params.reference) {
-        error 'Missing required parameter: --reference. Run `nextflow run . --help` for usage.'
+        error 'Missing required parameter: --reference. Run `nextflow run starsareintherose/RGBEPP --help` for usage.'
     }
 
     validateFunction()
