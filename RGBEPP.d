@@ -755,7 +755,7 @@ void processConcat(string[] ARG_G, string DirTrim, string PathConcataln){
 
 
 void main(string[] args) {
-    string pkgver = "0.0.4";
+    string pkgver = "0.0.5";
 
     string DirHome = std.file.getcwd();
     string DirRaw = buildPath(DirHome, "00_raw");

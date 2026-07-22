@@ -1,18 +1,66 @@
 name "rgbepp"
 description "Reference Genome based Exon Phylogeny Pipeline"
 authors "Guoyi Zhang"
-copyright "Copyright © 2024, Guoyi Zhang"
+copyright "Copyright © 2024-, Guoyi Zhang"
 license "GPL-2.0-only"
 targetType "executable"
+targetPath "bin"
+
+buildType "release-ldc" {
+    buildOptions "releaseMode" "optimize" "inline"
+    dflags "-O2" compiler="ldc"
+}
+
+buildType "release-static" {
+    buildOptions "releaseMode" "optimize" "inline"
+    dflags "-O2" compiler="ldc"
+    lflags "-static" platform="linux" compiler="ldc"
+}
 
 configuration "rgbepp" {
     targetType "executable"
-    targetName "rgbepp"
+    targetName "RGBEPP"
     sourceFiles "RGBEPP.d"
+}
+
+configuration "rgbepp-refmix" {
+    targetType "executable"
+    targetName "RGBEPP_refmix"
+    sourceFiles "RGBEPP_refmix.d"
+}
+
+configuration "sortdiamond" {
+    targetType "executable"
+    targetName "sortdiamond"
+    sourceFiles "sortdiamond.d"
+}
+
+configuration "splitfasta" {
+    targetType "executable"
+    targetName "splitfasta"
+    sourceFiles "splitfasta.d"
+}
+
+configuration "countTaxa" {
+    targetType "executable"
+    targetName "countTaxa"
+    sourceFiles "countTaxa.d"
 }
 
 configuration "delstop" {
     targetType "executable"
     targetName "delstop"
     sourceFiles "delstop.d"
+}
+
+configuration "deltaxa" {
+    targetType "executable"
+    targetName "deltaxa"
+    sourceFiles "deltaxa.d"
+}
+
+configuration "concataln" {
+    targetType "executable"
+    targetName "concataln"
+    sourceFiles "concataln.d"
 }

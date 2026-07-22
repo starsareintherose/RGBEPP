@@ -28,6 +28,26 @@ Author: Guoyi Zhang
 - deltaxa (default recognized path: /usr/bin/deltaxa)
 - concataln (default recognized path: /usr/bin/concataln)
 
+## Build with DUB
+
+The D tools can be built with LDC through `dub.sdl`:
+
+This builds `RGBEPP`, `RGBEPP_refmix`, `sortdiamond`, `splitfasta`, `countTaxa`, `delstop`, `deltaxa`, and `concataln` into `bin/` using `ldc2 -O2`.
+
+To build all executable:
+
+```
+rdmd build_all.d
+```
+
+To request static linking on Linux:
+
+```
+DUB_BUILD_TYPE=release-static rdmd build_all.d
+```
+
+Static linking requires static versions of the D runtime, Phobos, libc, and other system libraries on the build machine.
+
 ## Run it directly
 
 To run it directly, you can use the following command with following parameters.
