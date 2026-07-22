@@ -28,7 +28,17 @@ Author: Guoyi Zhang
 - deltaxa (default recognized path: /usr/bin/deltaxa)
 - concataln (default recognized path: /usr/bin/concataln)
 
-## Arguments
+## Run it directly
+
+To run it directly, you can use the following command with following parameters.
+
+It also supports Nextflow. Users can run the workflow directly from GitHub:
+
+```
+nextflow run starsareintherose/RGBEPP --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
+```
+
+Please refer [this tutorial](./Nextflow.md) for more details.
 
 ### Details
 
@@ -55,6 +65,7 @@ Author: Guoyi Zhang
     --delstop		Delstop path (optional)
     --deltaxa		Deltaxa path (optional)
     --trimal		Trimal path (optional)
+    --concataln		Concataln path (optional)
     for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
 ```
 
@@ -170,4 +181,3 @@ It deletes the one or multiple sequences of one fasta file.
 Usage: `concataln <prefix> file1 file2 ...`
 
 Concatenates multiple sequence alignments (MSAs). It will generate the `<prefix>.fasta` and `<prefix>.partitions.txt`
-
