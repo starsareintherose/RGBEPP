@@ -39,4 +39,4 @@ bcftools_index_paras		=
 bcftools_consensus_paras	=	
 exonerate_paras			=	
 macse_paras			=	
-trimal_paras			=	--gt 0.7
+trimal_paras			=	-gt 0.7
