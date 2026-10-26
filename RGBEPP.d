@@ -24,6 +24,7 @@ void show_help(string pkgver) {
 	    -g\t--genes\t\tgene file path (optional, if -r is specified)
 	    -h\t--help\t\tshow this information
 	    -l\t--list\t\tlist file path
+	    --log\t\tlog file path (optional, default rgbepp.log)
 	    -m\t--memory\tmemory settings (optional, default 16 GB)
 	    -r\t--reference\treference genome path
 	    -t\t--threads\tthreads setting (optional, default 8 threads)
@@ -114,6 +115,15 @@ void executeCommandToFile(string[] cmd, string outputFile) {
 
     // Write the output to the specified file
     std.file.write(outputFile, cast(ubyte[])output);
+}
+
+void initializeLog(string logPath) {
+    auto logFile = File(logPath, "a");
+    stdout.flush();
+    stderr.flush();
+    stdout = logFile;
+    stderr = logFile;
+    writeln("\n=== RGBEPP run started ===");
 }
 
 
@@ -810,6 +820,7 @@ void main(string[] args) {
     string ARG_C;
     string ARG_F;
     string ARG_R;
+    string ARG_LOG = "rgbepp.log";
     string strTaxa = "taxa";
     string strGene = "gene";
     string strParalog = "paralog.csv"; 
@@ -836,6 +847,10 @@ void main(string[] args) {
                 case "-l", "--list":
 		    i++;
                     ARG_L ~= readArrFromFile(args[i]);
+                    break;
+                case "--log":
+		    i++;
+                    ARG_LOG = args[i];
                     break;
                 case "-m", "--memory":
 		    i++;
@@ -912,6 +927,9 @@ void main(string[] args) {
         show_help(pkgver);
         return;
     }
+
+    initializeLog(ARG_LOG);
+    writeln("Command: ", args.join(" "));
 
     // get gene from ARG_R reference fasta
     if (ARG_R.length != 0 && ARG_G.length == 0 ){
@@ -1066,4 +1084,3 @@ void main(string[] args) {
 
     writeln("RGBEPP::End");
 }
-
