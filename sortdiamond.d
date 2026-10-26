@@ -38,7 +38,7 @@ string revcomp(const string seq) {
             case 'H': revseq ~= 'D'; break;
             case 'V': revseq ~= 'B'; break;
             case 'N': revseq ~= 'N'; break;
-            default: break; // 添加这一行
+            default: break; // Ignore unsupported characters.
         }
     }
     return revseq;
@@ -95,7 +95,7 @@ void processRevert(const SeqData[string] best_map, ref Tuple!(string, string)[] 
     result.sort!((a, b) => a[0] < b[0]);
 }
 
-// 写输出文件
+// Write the selected sequences to the output FASTA file.
 void writeOutputFile(string filename, const Tuple!(string, string)[] result) {
     auto file = File(filename, "w");
     foreach (entry; result) {
