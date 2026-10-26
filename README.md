@@ -52,6 +52,10 @@ Static linking requires static versions of the D runtime, Phobos, libc, and othe
 
 To run it directly, you can use the following command with following parameters.
 
+```
+RGBEPP -f all -l list -t 8 -r reference.fasta  
+```
+
 It also supports Nextflow. Users can run the workflow directly from GitHub:
 
 ```
@@ -118,7 +122,7 @@ Each directory corresponds to each function.
 
 ```
 cd 00_raw
-ls | sed "s@_R[12].fastq.gz@@g" | uniq > ../list
+ls *.fastq.gz | sed "s@_R[12].fastq.gz@@g" | uniq > ../list
 cd ..
 ```
 
