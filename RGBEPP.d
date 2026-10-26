@@ -58,8 +58,18 @@ bool testJava() {
 bool testFiles(string[] filePaths) {
     bool pass = true;
     foreach(filePath; filePaths){
-        if (!exists(filePath) && filePath != "") {
-            writeln("Error: " ~ filePath ~ " does not exists.");
+	if (filePath.empty) {
+	    writeln("Error: a required tool path was not provided.");
+	    pass = false;
+	    continue;
+	}
+	// Explicit paths are checked directly; command names are resolved through PATH.
+	bool found = filePath.canFind('/') || filePath.canFind('\\')
+	    ? exists(filePath)
+	    : environment.get("PATH", "").split(pathSeparator)
+		.any!(directory => exists(buildPath(directory, filePath)));
+	if (!found) {
+	    writeln("Error: required tool was not found: " ~ filePath);
 	    pass = false;
         } 
     }
@@ -778,19 +788,19 @@ void main(string[] args) {
     string DirAlign = buildPath(DirHome, "07_macse"); 
     string DirTrim = buildPath(DirHome, "08_trimal"); 
 
-    string PathFastp = "/usr/bin/fastp";
-    string PathSpades = "/usr/bin/spades.py";
-    string PathDiamond = "/usr/bin/diamond";
-    string PathSortDiamond = "/usr/bin/sortdiamond";
-    string PathBowtie2 = "/usr/bin/bowtie2";
-    string PathSamtools = "/usr/bin/samtools";
-    string PathBcftools = "/usr/bin/bcftools";
-    string PathExonerate = "/usr/bin/exonerate";
+    string PathFastp = "fastp";
+    string PathSpades = "spades.py";
+    string PathDiamond = "diamond";
+    string PathSortDiamond = "sortdiamond";
+    string PathBowtie2 = "bowtie2";
+    string PathSamtools = "samtools";
+    string PathBcftools = "bcftools";
+    string PathExonerate = "exonerate";
     string PathMacse = "/usr/share/java/macse.jar";
-    string PathDelstop = "/usr/bin/delstop";
-    string PathDeltaxa = "/usr/bin/deltaxa";
-    string PathTrimal = "/usr/bin/trimal";
-    string PathConcataln = "/usr/bin/concataln";
+    string PathDelstop = "delstop";
+    string PathDeltaxa = "deltaxa";
+    string PathTrimal = "trimal";
+    string PathConcataln = "concataln";
 
     string[] fastpParas = [];
     string[] spadesParas = ["--careful", "--phred-offset", "33"];

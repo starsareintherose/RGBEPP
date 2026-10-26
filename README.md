@@ -18,15 +18,19 @@ Author: Guoyi Zhang
 - bcftools
 - exonerate (optional, only for --codon)
 - java
-- macse (default recognized path: /usr/share/java/macse.jar)
+- macse (default path: `/usr/share/java/macse.jar`)
 - trimal
 
 ### Internal software
 
-- sortdiamond (default recognized path: /usr/bin/sortdiamond)
-- delstop (default recognized path: /usr/bin/delstop)
-- deltaxa (default recognized path: /usr/bin/deltaxa)
-- concataln (default recognized path: /usr/bin/concataln)
+- sortdiamond
+- delstop
+- deltaxa
+- concataln
+
+RGBEPP resolves command-name tool settings (including the internal utilities above) using `$PATH`. They do not need to be installed in `/usr/bin`. You can also provide an explicit executable path in `config.example` or with the corresponding command-line option.
+
+For MACSE, you should specify which JAR file you prefer. The default is `/usr/share/java/macse.jar`.
 
 ## Build with DUB
 
@@ -73,6 +77,7 @@ Please refer [this tutorial](./Nextflow.md) for more details.
       	           	varcall consen codon align ortholog trim concat
     -h	--help		show this information
     -l	--list		list file path
+    --log		log file path (optional, default rgbepp.log)
     -m	--memory	memory settings (optional, default 16 GB)
     -r	--reference	reference genome path
     -t	--threads	threads setting (optional, default 8 threads)
