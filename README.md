@@ -34,6 +34,29 @@ For MACSE, you should specify which JAR file you prefer. The default is `/usr/sh
 
 ## Build with DUB
 
+
+Before compiling from source, install `dub`, `ldc`, and `rdmd`.
+
+```bash
+# Arch Linux / Manjaro
+sudo pacman -S dub ldc dtools
+
+# Debian / Ubuntu
+sudo apt install dub ldc
+sudo snap install dmd --classic  # provides rdmd
+
+# Fedora
+sudo dnf install dub ldc
+
+# Rocky Linux / CentOS
+sudo dnf install dub ldc
+## you should also install snapd before using snap
+sudo snap install dmd --classic # provides rdmd
+
+# openSUSE Tumbleweed
+sudo zypper install dub dmd
+```
+
 The D tools can be built with LDC through `dub.sdl`:
 
 This builds `RGBEPP`, `RGBEPP_refmix`, `sortdiamond`, `splitfasta`, `countTaxa`, `delstop`, `deltaxa`, and `concataln` into `bin/` using `ldc2 -O2`.
