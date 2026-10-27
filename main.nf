@@ -11,6 +11,7 @@ params.threads = params.threads ?: 8
 params.memory = params.memory ?: 16
 params.codon = params.codon ?: false
 params.function = params.function ?: 'all'
+params.log = params.log ?: 'rgbepp.log'
 params.publish_mode = params.publish_mode ?: 'copy'
 params.fastp = params.fastp ?: 'fastp'
 params.spades = params.spades ?: 'spades.py'
@@ -59,44 +60,45 @@ def helpMessage() {
     return """
     RGBEPP Nextflow workflow
 
-    Required:
-      --reference     Reference amino-acid FASTA file
-
-    Common options:
-      --list          Sample list file (default: list)
-      --genes         Gene list file; generated from --reference if omitted
-      --raw_dir       Directory containing *_R1.fastq.gz and *_R2.fastq.gz files (default: 00_raw)
-      --rgbepp        RGBEPP executable command (default: RGBEPP)
-      --config        RGBEPP config file for tool paths and parameters
-      --threads       Threads per RGBEPP step (default: 8)
-      --memory        Memory in GB for RGBEPP/SPAdes (default: 16)
+    General options:
       --codon         Run the optional codon extraction step before alignment
+      --config        RGBEPP config; values override conflicting tool/directory options
       --function      Run through this RGBEPP function (default: all)
+      --genes         Gene list file; generated from --reference if omitted
+      --list          Sample list file (default: list)
+      --log           Log filename/prefix (default: rgbepp.log; one file per stage)
+      --memory        Memory in GB for RGBEPP/SPAdes (default: 16)
       --outdir        Published results directory (default: results)
+      --reference     Reference amino-acid FASTA file (required)
+      --rgbepp        RGBEPP executable command (default: RGBEPP)
+      --threads       Threads per RGBEPP step (default: 8)
 
-    RGBEPP config keys:
-      --fastp         fastp executable path
-      --spades        spades.py executable path
-      --diamond       diamond executable path
-      --sortdiamond   sortdiamond executable path
-      --bowtie2       bowtie2 executable path
-      --samtools      samtools executable path
-      --bcftools      bcftools executable path
-      --exonerate     exonerate executable path
-      --macse         macse jar path
-      --delstop       delstop executable path
-      --deltaxa       deltaxa executable path
-      --trimal        trimal executable path
-      --concataln     concataln executable path
+    Tool paths (command names are resolved through PATH):
+      --bcftools      bcftools path
+      --bowtie2       bowtie2 path
+      --concataln     concataln path
+      --delstop       delstop path
+      --deltaxa       deltaxa path
+      --diamond       diamond path
+      --exonerate     exonerate path
+      --fastp         fastp path
+      --macse         MACSE JAR path
+      --samtools      samtools path
+      --sortdiamond   sortdiamond path
+      --spades        spades.py path
+      --trimal        trimal path
+
+    Directories (config.example):
+      --raw_dir       Directory containing paired FASTQ files (default: 00_raw)
       --fastp_dir     RGBEPP fastp output directory (default: 01_fastp)
-      --spades_dir    RGBEPP spades output directory (default: 02_spades)
-      --bowtie2_dir   RGBEPP bowtie2 output directory (default: 03_bowtie2)
+      --spades_dir    RGBEPP SPAdes output directory (default: 02_spades)
+      --bowtie2_dir   RGBEPP Bowtie2 output directory (default: 03_bowtie2)
       --bam_dir       RGBEPP BAM output directory (default: 04_bam)
       --vcf_dir       RGBEPP VCF output directory (default: 05_vcf)
       --consen_dir    RGBEPP consensus output directory (default: 06_consen)
       --macse_dir     RGBEPP MACSE output directory (default: 07_macse)
       --trimal_dir    RGBEPP trim output directory (default: 08_trimal)
-      --*_paras       Tool-specific RGBEPP config parameters, e.g. --spades_paras "--careful --phred-offset 33"
+      Tool-specific *_paras values are configured in the config file.
 
     Example:
       nextflow run starsareintherose/RGBEPP --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
@@ -109,6 +111,21 @@ def cmdPath(value) {
 
 def shellQuote(value) {
     return "'${value.toString().replace("'", "'\"'\"'")}'"
+}
+
+def logName(stage) {
+    def requested = params.log.toString()
+    if (!requested || requested.contains('/') || requested.contains('\\')) {
+        error "--log must be a filename or prefix, not a path: ${requested}"
+    }
+    def dot = requested.lastIndexOf('.')
+    return dot > 0
+        ? "${requested.substring(0, dot)}.${stage}${requested.substring(dot)}"
+        : "${requested}.${stage}.log"
+}
+
+def logArg(stage) {
+    return "--log ${shellQuote(logName(stage))}"
 }
 
 def functionStages() {
@@ -130,10 +147,10 @@ def validateFunction() {
     }
 }
 
-def validateRelativeDirs() {
+def validateRelativeDirs(directoryValues) {
     def dirParams = ['raw_dir', 'fastp_dir', 'spades_dir', 'bowtie2_dir', 'bam_dir', 'vcf_dir', 'consen_dir', 'macse_dir', 'trimal_dir']
     dirParams.each { name ->
-        def value = params[name]?.toString()
+        def value = directoryValues[name]?.toString()
         if (!value) {
             error "Parameter --${name} cannot be empty"
         }
@@ -152,6 +169,64 @@ def rgbeppCmd() {
 
 def suppliedConfig() {
     return params.config ? file(params.config).toAbsolutePath() : null
+}
+
+def externalConfigValues() {
+    def values = [:]
+    def configFile = suppliedConfig()
+    if (!configFile) return values
+    if (!configFile.isFile()) error "RGBEPP config file does not exist: ${configFile}"
+    configFile.eachLine { line ->
+        def text = line.trim()
+        if (!text || text.startsWith('#')) return
+        int separator = text.indexOf('=')
+        if (separator > 0) {
+            values[text.substring(0, separator).trim()] = text.substring(separator + 1).trim()
+        }
+    }
+    return values
+}
+
+def applyExternalConfigOverrides() {
+    if (!params.config) return
+    def values = externalConfigValues()
+    def toolDefaults = [
+        fastp: 'fastp', spades: 'spades.py', diamond: 'diamond', sortdiamond: 'sortdiamond',
+        bowtie2: 'bowtie2', samtools: 'samtools', bcftools: 'bcftools', exonerate: 'exonerate',
+        macse: '/usr/share/java/macse.jar', delstop: 'delstop', deltaxa: 'deltaxa',
+        trimal: 'trimal', concataln: 'concataln'
+    ]
+    toolDefaults.each { key, defaultValue ->
+        def configValue = values[key]
+        def parameterValue = params[key]?.toString()
+        if (configValue && parameterValue && parameterValue != defaultValue && parameterValue != configValue) {
+            log.warn "--${key}='${parameterValue}' conflicts with config value '${configValue}'; the config value takes precedence"
+        }
+    }
+
+}
+
+def effectiveDirectoryValues() {
+    def defaults = [
+        raw_dir: '00_raw', fastp_dir: '01_fastp', spades_dir: '02_spades',
+        bowtie2_dir: '03_bowtie2', bam_dir: '04_bam', vcf_dir: '05_vcf',
+        consen_dir: '06_consen', macse_dir: '07_macse', trimal_dir: '08_trimal'
+    ]
+    def configValues = params.config ? externalConfigValues() : [:]
+    def result = [:]
+    defaults.each { key, defaultValue ->
+        def parameterValue = params[key]?.toString() ?: defaultValue
+        def configValue = configValues[key]
+        if (configValue) {
+            if (parameterValue != defaultValue && parameterValue != configValue) {
+                log.warn "--${key}='${parameterValue}' conflicts with config value '${configValue}'; the config value takes precedence"
+            }
+            result[key] = configValue
+        } else {
+            result[key] = parameterValue
+        }
+    }
+    return result
 }
 
 def configArg() {
@@ -272,20 +347,23 @@ process CLEAN {
     path sample_list, name: 'list'
     path raw_reads
 
+    val directories
+
     output:
-    path "${params.fastp_dir}"
+    path "${directories.fastp_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    if [[ "${params.raw_dir}" != /* ]]; then
-        mkdir -p "${params.raw_dir}"
-        cp -L ${raw_reads.join(' ')} "${params.raw_dir}/"
+    if [[ "${directories.raw_dir}" != /* ]]; then
+        mkdir -p "${directories.raw_dir}"
+        cp -L ${raw_reads.join(' ')} "${directories.raw_dir}/"
     fi
-    ${rgbeppCmd()} -f clean -l list ${commonArgs()}
-    compgen -G "${params.fastp_dir}/*_R1.fastq.gz" > /dev/null || { echo "No R1 cleaned reads were produced in ${params.fastp_dir}" >&2; exit 1; }
-    compgen -G "${params.fastp_dir}/*_R2.fastq.gz" > /dev/null || { echo "No R2 cleaned reads were produced in ${params.fastp_dir}" >&2; exit 1; }
+    ${rgbeppCmd()} -f clean -l list ${commonArgs()} ${logArg('clean')}
+    cp ${shellQuote(logName('clean'))} "${directories.fastp_dir}/"
+    compgen -G "${directories.fastp_dir}/*_R1.fastq.gz" > /dev/null || { echo "No R1 cleaned reads were produced in ${directories.fastp_dir}" >&2; exit 1; }
+    compgen -G "${directories.fastp_dir}/*_R2.fastq.gz" > /dev/null || { echo "No R2 cleaned reads were produced in ${directories.fastp_dir}" >&2; exit 1; }
     """
 }
 
@@ -299,16 +377,19 @@ process ASSEMBLY {
     path sample_list, name: 'list'
     path fastp_dir, name: 'input_01_fastp'
 
+    val directories
+
     output:
-    path "${params.spades_dir}"
+    path "${directories.spades_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_01_fastp "${params.fastp_dir}"
-    ${rgbeppCmd()} -f assembly -l list ${commonArgs()}
-    compgen -G "${params.spades_dir}/scaffolds/*.fasta" > /dev/null || { echo "No scaffold FASTA files were produced in ${params.spades_dir}/scaffolds" >&2; exit 1; }
+    cp -aL input_01_fastp "${directories.fastp_dir}"
+    ${rgbeppCmd()} -f assembly -l list ${commonArgs()} ${logArg('assembly')}
+    cp ${shellQuote(logName('assembly'))} "${directories.spades_dir}/"
+    compgen -G "${directories.spades_dir}/scaffolds/*.fasta" > /dev/null || { echo "No scaffold FASTA files were produced in ${directories.spades_dir}/scaffolds" >&2; exit 1; }
     """
 }
 
@@ -324,19 +405,22 @@ process MAP {
     path fastp_dir, name: 'input_01_fastp'
     path assembly_dir, name: 'input_02_spades'
 
+    val directories
+
     output:
-    path "${params.spades_dir}", emit: assembly
-    path "${params.bowtie2_dir}", emit: map
+    path "${directories.spades_dir}", emit: assembly
+    path "${directories.bowtie2_dir}", emit: map
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_01_fastp "${params.fastp_dir}"
-    cp -aL input_02_spades "${params.spades_dir}"
-    ${rgbeppCmd()} -f map -l list -r ${reference} ${commonArgs()}
-    compgen -G "${params.spades_dir}/fasta/*.fasta" > /dev/null || { echo "No mapped reference FASTA files were produced in ${params.spades_dir}/fasta" >&2; exit 1; }
-    compgen -G "${params.bowtie2_dir}/*.bam" > /dev/null || { echo "No mapping BAM files were produced in ${params.bowtie2_dir}" >&2; exit 1; }
+    cp -aL input_01_fastp "${directories.fastp_dir}"
+    cp -aL input_02_spades "${directories.spades_dir}"
+    ${rgbeppCmd()} -f map -l list -r ${reference} ${commonArgs()} ${logArg('map')}
+    cp ${shellQuote(logName('map'))} "${directories.bowtie2_dir}/"
+    compgen -G "${directories.spades_dir}/fasta/*.fasta" > /dev/null || { echo "No mapped reference FASTA files were produced in ${directories.spades_dir}/fasta" >&2; exit 1; }
+    compgen -G "${directories.bowtie2_dir}/*.bam" > /dev/null || { echo "No mapping BAM files were produced in ${directories.bowtie2_dir}" >&2; exit 1; }
     """
 }
 
@@ -350,17 +434,20 @@ process POSTMAP {
     path sample_list, name: 'list'
     path map_dir, name: 'input_03_bowtie2'
 
+    val directories
+
     output:
-    path "${params.bam_dir}"
+    path "${directories.bam_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_03_bowtie2 "${params.bowtie2_dir}"
-    ${rgbeppCmd()} -f postmap -l list ${commonArgs()}
-    compgen -G "${params.bam_dir}/*.bam" > /dev/null || { echo "No post-mapping BAM files were produced in ${params.bam_dir}" >&2; exit 1; }
-    compgen -G "${params.bam_dir}/*.bam.bai" > /dev/null || { echo "No BAM index files were produced in ${params.bam_dir}" >&2; exit 1; }
+    cp -aL input_03_bowtie2 "${directories.bowtie2_dir}"
+    ${rgbeppCmd()} -f postmap -l list ${commonArgs()} ${logArg('postmap')}
+    cp ${shellQuote(logName('postmap'))} "${directories.bam_dir}/"
+    compgen -G "${directories.bam_dir}/*.bam" > /dev/null || { echo "No post-mapping BAM files were produced in ${directories.bam_dir}" >&2; exit 1; }
+    compgen -G "${directories.bam_dir}/*.bam.bai" > /dev/null || { echo "No BAM index files were produced in ${directories.bam_dir}" >&2; exit 1; }
     """
 }
 
@@ -375,17 +462,20 @@ process VARCALL {
     path assembly_dir, name: 'input_02_spades'
     path bam_dir, name: 'input_04_bam'
 
+    val directories
+
     output:
-    path "${params.vcf_dir}"
+    path "${directories.vcf_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_02_spades "${params.spades_dir}"
-    cp -aL input_04_bam "${params.bam_dir}"
-    ${rgbeppCmd()} -f varcall -l list ${commonArgs()}
-    compgen -G "${params.vcf_dir}/*.vcf.gz" > /dev/null || { echo "No VCF files were produced in ${params.vcf_dir}" >&2; exit 1; }
+    cp -aL input_02_spades "${directories.spades_dir}"
+    cp -aL input_04_bam "${directories.bam_dir}"
+    ${rgbeppCmd()} -f varcall -l list ${commonArgs()} ${logArg('varcall')}
+    cp ${shellQuote(logName('varcall'))} "${directories.vcf_dir}/"
+    compgen -G "${directories.vcf_dir}/*.vcf.gz" > /dev/null || { echo "No VCF files were produced in ${directories.vcf_dir}" >&2; exit 1; }
     """
 }
 
@@ -401,18 +491,21 @@ process CONSEN {
     path assembly_dir, name: 'input_02_spades'
     path vcf_dir, name: 'input_05_vcf'
 
+    val directories
+
     output:
-    path "${params.consen_dir}"
+    path "${directories.consen_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_02_spades "${params.spades_dir}"
-    cp -aL input_05_vcf "${params.vcf_dir}"
-    ${rgbeppCmd()} -f consen -l list -g genes ${commonArgs()}
-    compgen -G "${params.consen_dir}/taxa/*.fasta" > /dev/null || { echo "No consensus taxa FASTA files were produced in ${params.consen_dir}/taxa" >&2; exit 1; }
-    compgen -G "${params.consen_dir}/gene/*.fasta" > /dev/null || { echo "No consensus gene FASTA files were produced in ${params.consen_dir}/gene" >&2; exit 1; }
+    cp -aL input_02_spades "${directories.spades_dir}"
+    cp -aL input_05_vcf "${directories.vcf_dir}"
+    ${rgbeppCmd()} -f consen -l list -g genes ${commonArgs()} ${logArg('consen')}
+    cp ${shellQuote(logName('consen'))} "${directories.consen_dir}/"
+    compgen -G "${directories.consen_dir}/taxa/*.fasta" > /dev/null || { echo "No consensus taxa FASTA files were produced in ${directories.consen_dir}/taxa" >&2; exit 1; }
+    compgen -G "${directories.consen_dir}/gene/*.fasta" > /dev/null || { echo "No consensus gene FASTA files were produced in ${directories.consen_dir}/gene" >&2; exit 1; }
     """
 }
 
@@ -427,16 +520,19 @@ process CODON {
     path reference
     path consensus_dir, name: 'input_06_consen'
 
+    val directories
+
     output:
-    path "${params.consen_dir}"
+    path "${directories.consen_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_06_consen "${params.consen_dir}"
-    ${rgbeppCmd()} -f codon -g genes -r ${reference} ${commonArgs()}
-    compgen -G "${params.consen_dir}/gene/*.fasta" > /dev/null || { echo "No codon-filtered gene FASTA files were produced in ${params.consen_dir}/gene" >&2; exit 1; }
+    cp -aL input_06_consen "${directories.consen_dir}"
+    ${rgbeppCmd()} -f codon -g genes -r ${reference} ${commonArgs()} ${logArg('codon')}
+    cp ${shellQuote(logName('codon'))} "${directories.consen_dir}/"
+    compgen -G "${directories.consen_dir}/gene/*.fasta" > /dev/null || { echo "No codon-filtered gene FASTA files were produced in ${directories.consen_dir}/gene" >&2; exit 1; }
     """
 }
 
@@ -450,17 +546,20 @@ process ALIGN {
     path genes, name: 'genes'
     path consensus_dir, name: 'input_06_consen'
 
+    val directories
+
     output:
-    path "${params.macse_dir}"
+    path "${directories.macse_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_06_consen "${params.consen_dir}"
-    ${rgbeppCmd()} -f align -g genes ${commonArgs()}
-    compgen -G "${params.macse_dir}/AA/*.fasta" > /dev/null || { echo "No MACSE AA alignments were produced in ${params.macse_dir}/AA" >&2; exit 1; }
-    compgen -G "${params.macse_dir}/NT/*.fasta" > /dev/null || { echo "No MACSE NT alignments were produced in ${params.macse_dir}/NT" >&2; exit 1; }
+    cp -aL input_06_consen "${directories.consen_dir}"
+    ${rgbeppCmd()} -f align -g genes ${commonArgs()} ${logArg('align')}
+    cp ${shellQuote(logName('align'))} "${directories.macse_dir}/"
+    compgen -G "${directories.macse_dir}/AA/*.fasta" > /dev/null || { echo "No MACSE AA alignments were produced in ${directories.macse_dir}/AA" >&2; exit 1; }
+    compgen -G "${directories.macse_dir}/NT/*.fasta" > /dev/null || { echo "No MACSE NT alignments were produced in ${directories.macse_dir}/NT" >&2; exit 1; }
     """
 }
 
@@ -476,18 +575,21 @@ process ORTHOLOG {
     path reference
     path align_dir, name: 'input_07_macse'
 
+    val directories
+
     output:
-    path "${params.macse_dir}", emit: align
+    path "${directories.macse_dir}", emit: align
     path 'paralog.csv', emit: paralog
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_07_macse "${params.macse_dir}"
-    ${rgbeppCmd()} -f ortholog -l list -g genes -r ${reference} ${commonArgs()}
+    cp -aL input_07_macse "${directories.macse_dir}"
+    ${rgbeppCmd()} -f ortholog -l list -g genes -r ${reference} ${commonArgs()} ${logArg('ortholog')}
+    cp ${shellQuote(logName('ortholog'))} "${directories.macse_dir}/"
     [[ -e paralog.csv ]] || { echo "Paralog report was not produced: paralog.csv" >&2; exit 1; }
-    compgen -G "${params.macse_dir}/taxa/*.tsv" > /dev/null || { echo "No ortholog TSV files were produced in ${params.macse_dir}/taxa" >&2; exit 1; }
+    compgen -G "${directories.macse_dir}/taxa/*.tsv" > /dev/null || { echo "No ortholog TSV files were produced in ${directories.macse_dir}/taxa" >&2; exit 1; }
     """
 }
 
@@ -501,16 +603,19 @@ process TRIM {
     path genes, name: 'genes'
     path align_dir, name: 'input_07_macse'
 
+    val directories
+
     output:
-    path "${params.trimal_dir}"
+    path "${directories.trimal_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_07_macse "${params.macse_dir}"
-    ${rgbeppCmd()} -f trim -g genes ${commonArgs()}
-    compgen -G "${params.trimal_dir}/NT/*.fasta" > /dev/null || { echo "No trimmed FASTA files were produced in ${params.trimal_dir}/NT" >&2; exit 1; }
+    cp -aL input_07_macse "${directories.macse_dir}"
+    ${rgbeppCmd()} -f trim -g genes ${commonArgs()} ${logArg('trim')}
+    cp ${shellQuote(logName('trim'))} "${directories.trimal_dir}/"
+    compgen -G "${directories.trimal_dir}/NT/*.fasta" > /dev/null || { echo "No trimmed FASTA files were produced in ${directories.trimal_dir}/NT" >&2; exit 1; }
     """
 }
 
@@ -524,16 +629,19 @@ process CONCAT {
     path genes, name: 'genes'
     path trim_dir, name: 'input_08_trimal'
 
+    val directories
+
     output:
-    path "${params.trimal_dir}"
+    path "${directories.trimal_dir}"
 
     script:
     """
     set -euo pipefail
     ${configSetup()}
-    cp -aL input_08_trimal "${params.trimal_dir}"
-    ${rgbeppCmd()} -f concat -g genes ${commonArgs()}
-    [[ -s "${params.trimal_dir}/concat.fasta.fasta" ]] || { echo "Concatenated FASTA was not produced: ${params.trimal_dir}/concat.fasta.fasta" >&2; exit 1; }
+    cp -aL input_08_trimal "${directories.trimal_dir}"
+    ${rgbeppCmd()} -f concat -g genes ${commonArgs()} ${logArg('concat')}
+    cp ${shellQuote(logName('concat'))} "${directories.trimal_dir}/"
+    [[ -s "${directories.trimal_dir}/concat.fasta.fasta" ]] || { echo "Concatenated FASTA was not produced: ${directories.trimal_dir}/concat.fasta.fasta" >&2; exit 1; }
     """
 }
 
@@ -547,12 +655,15 @@ workflow {
         error 'Missing required parameter: --reference. Run `nextflow run starsareintherose/RGBEPP --help` for usage.'
     }
 
+    applyExternalConfigOverrides()
+    directory_values = effectiveDirectoryValues()
     validateFunction()
-    validateRelativeDirs()
+    validateRelativeDirs(directory_values)
+    directory_values_ch = Channel.value(directory_values)
 
     sample_list_ch = Channel.fromPath(params.list, checkIfExists: true)
     reference_ch = Channel.fromPath(params.reference, checkIfExists: true)
-    raw_reads_ch = Channel.fromPath("${params.raw_dir}/*_R[12].fastq.gz", checkIfExists: true).collect()
+    raw_reads_ch = Channel.fromPath("${directory_values.raw_dir}/*_R[12].fastq.gz", checkIfExists: true).collect()
 
     if (params.genes) {
         genes_ch = Channel.fromPath(params.genes, checkIfExists: true)
@@ -561,49 +672,49 @@ workflow {
         genes_ch = PREPARE_GENES.out
     }
 
-    CLEAN(sample_list_ch, raw_reads_ch)
+    CLEAN(sample_list_ch, raw_reads_ch, directory_values_ch)
 
     if (functionEnabled('assembly')) {
-        ASSEMBLY(sample_list_ch, CLEAN.out)
+        ASSEMBLY(sample_list_ch, CLEAN.out, directory_values_ch)
     }
 
     if (functionEnabled('map')) {
-        MAP(sample_list_ch, reference_ch, CLEAN.out, ASSEMBLY.out)
+        MAP(sample_list_ch, reference_ch, CLEAN.out, ASSEMBLY.out, directory_values_ch)
     }
 
     if (functionEnabled('postmap')) {
-        POSTMAP(sample_list_ch, MAP.out.map)
+        POSTMAP(sample_list_ch, MAP.out.map, directory_values_ch)
     }
 
     if (functionEnabled('varcall')) {
-        VARCALL(sample_list_ch, MAP.out.assembly, POSTMAP.out)
+        VARCALL(sample_list_ch, MAP.out.assembly, POSTMAP.out, directory_values_ch)
     }
 
     if (functionEnabled('consen')) {
-        CONSEN(sample_list_ch, genes_ch, MAP.out.assembly, VARCALL.out)
+        CONSEN(sample_list_ch, genes_ch, MAP.out.assembly, VARCALL.out, directory_values_ch)
     }
 
     if (functionEnabled('codon') && codonEnabled()) {
-        CODON(genes_ch, reference_ch, CONSEN.out)
+        CODON(genes_ch, reference_ch, CONSEN.out, directory_values_ch)
     }
 
     if (functionEnabled('align')) {
         if (codonEnabled()) {
-            ALIGN(genes_ch, CODON.out)
+            ALIGN(genes_ch, CODON.out, directory_values_ch)
         } else {
-            ALIGN(genes_ch, CONSEN.out)
+            ALIGN(genes_ch, CONSEN.out, directory_values_ch)
         }
     }
 
     if (functionEnabled('ortholog')) {
-        ORTHOLOG(sample_list_ch, genes_ch, reference_ch, ALIGN.out)
+        ORTHOLOG(sample_list_ch, genes_ch, reference_ch, ALIGN.out, directory_values_ch)
     }
 
     if (functionEnabled('trim')) {
-        TRIM(genes_ch, ORTHOLOG.out.align)
+        TRIM(genes_ch, ORTHOLOG.out.align, directory_values_ch)
     }
 
     if (functionEnabled('concat')) {
-        CONCAT(genes_ch, TRIM.out)
+        CONCAT(genes_ch, TRIM.out, directory_values_ch)
     }
 }

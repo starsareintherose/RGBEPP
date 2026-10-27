@@ -28,6 +28,14 @@ Run the workflow:
 nextflow run starsareintherose/RGBEPP --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
 ```
 
+RGBEPP writes a separate log for each workflow stage. By default, each log is named `rgbepp.<stage>.log` and is included in that stage's published output directory. Use `--log` to change the common filename prefix (pass a filename, not a directory):
+
+```
+nextflow run starsareintherose/RGBEPP --reference reference.aa.fasta --list list --raw_dir 00_raw --log study.log --rgbepp RGBEPP
+```
+
+For example, this produces `study.clean.log`, `study.assembly.log`, and so on. Nextflow stages run in isolated work directories, so the wrapper creates one log per stage rather than appending all stages to one shared file.
+
 If `genes` is omitted, Nextflow generates it from the reference FASTA headers before running RGBEPP:
 
 ```
@@ -90,11 +98,11 @@ nextflow run starsareintherose/RGBEPP \
   --trimal_paras "-gt 0.7"
 ```
 
-The full set of RGBEPP config keys accepted as Nextflow parameters is: `fastp`, `spades`, `diamond`, `sortdiamond`, `bowtie2`, `samtools`, `bcftools`, `exonerate`, `macse`, `delstop`, `deltaxa`, `trimal`, `concataln`, `raw_dir`, `fastp_dir`, `spades_dir`, `bowtie2_dir`, `bam_dir`, `vcf_dir`, `consen_dir`, `macse_dir`, `trimal_dir`, `fastp_paras`, `spades_paras`, `diamond_makedb_paras`, `diamond_blastx_paras`, `bowtie2_build_paras`, `bowtie2_paras`, `samtools_view_paras`, `samtools_fixmate_paras`, `samtools_sort_paras`, `samtools_markdup_paras`, `samtools_index_paras`, `bcftools_mpileup_paras`, `bcftools_call_paras`, `bcftools_norm_paras`, `bcftools_filter_paras`, `bcftools_index_paras`, `bcftools_consensus_paras`, `exonerate_paras`, `macse_paras`, and `trimal_paras`.
+The full set of RGBEPP config keys accepted as Nextflow parameters is: `bam_dir`, `bcftools`, `bcftools_call_paras`, `bcftools_consensus_paras`, `bcftools_filter_paras`, `bcftools_index_paras`, `bcftools_mpileup_paras`, `bcftools_norm_paras`, `bowtie2`, `bowtie2_build_paras`, `bowtie2_dir`, `bowtie2_paras`, `concataln`, `consen_dir`, `delstop`, `deltaxa`, `diamond`, `diamond_blastx_paras`, `diamond_makedb_paras`, `exonerate`, `exonerate_paras`, `fastp`, `fastp_dir`, `fastp_paras`, `macse`, `macse_dir`, `macse_paras`, `raw_dir`, `samtools`, `samtools_fixmate_paras`, `samtools_index_paras`, `samtools_markdup_paras`, `samtools_sort_paras`, `samtools_view_paras`, `sortdiamond`, `spades`, `spades_dir`, `spades_paras`, `trimal`, `trimal_dir`, `trimal_paras`, `vcf_dir`.
 
-The Nextflow wrapper also accepts the RGBEPP input arguments `--list`, `--genes`, `--reference`, `--threads`, `--memory`, `--config`, `--codon`, and `--function`. The RGBEPP `-f/--functions` argument is managed internally by Nextflow: each workflow process calls the appropriate RGBEPP function for that stage. Users can still run the D executable directly when they want a manual single-stage RGBEPP command.
+The Nextflow wrapper also accepts the RGBEPP input arguments `--codon`, `--config`, `--function`, `--genes`, `--list`, `--log`, `--memory`, `--reference`, `--threads`. The `--log` value is a filename/prefix (default: `rgbepp.log`); one stage-specific log is written into each corresponding stage output directory. The RGBEPP `-f/--functions` argument is managed internally by Nextflow: each workflow process calls the appropriate RGBEPP function for that stage. Users can still run the D executable directly when they want a manual single-stage RGBEPP command.
 
-If `--config` is supplied, the external RGBEPP config file is used instead of the generated Nextflow config. In that case, make sure its directory keys match the corresponding Nextflow directory parameters, because Nextflow uses those parameter values to stage and collect process outputs.
+If `--config` is supplied, the external RGBEPP config file is used instead of the generated Nextflow config. Configured tool paths take precedence over conflicting tool parameters, with a warning. Configured directory values also take precedence over conflicting `--*_dir` parameters; Nextflow uses those values consistently for input staging and output collection. Tool-specific `*_paras` values are read from the external config.
 
 Directory parameters must be relative paths and must not contain `..`. This keeps each RGBEPP step isolated inside its Nextflow work directory and avoids accidental writes outside the task sandbox.
 
@@ -105,3 +113,5 @@ Results are published to `results` by default. Nextflow work directories and cac
 ```
 nextflow run starsareintherose/RGBEPP -resume --reference reference.aa.fasta --list list --raw_dir 00_raw --rgbepp RGBEPP
 ```
+
+Use Nextflow's `-resume` for workflow runs: successful stage processes are reused from the Nextflow task cache, while failed or interrupted processes are rerun. RGBEPP's standalone `--resume` checkpoints live in each task's work directory and are not needed or forwarded by the wrapper.
