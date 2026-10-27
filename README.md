@@ -94,40 +94,57 @@ Please refer [this tutorial](./Nextflow.md) for more details.
 ### Details
 
 ```
-    -c	--config	config file for software path (optional)
-    -g	--genes		gene file path (optional, if -r is specified)
-    -f	--functions	functions type (optional): all clean assembly map postmap 
+    General options:
+    --codon		Only use the codon region (optional)
+    -c	--config	config file for software path (optional; takes precedence over tool path options)
+    -f	--functions	functions type (optional): all clean assembly map postmap
       	           	varcall consen codon align ortholog trim concat
+    -g	--genes		gene file path (optional, if -r is specified)
     -h	--help		show this information
     -l	--list		list file path
     --log		log file path (optional, default rgbepp.log)
     -m	--memory	memory settings (optional, default 16 GB)
     -r	--reference	reference genome path
+    --resume		resume using stage checkpoints (optional)
     -t	--threads	threads setting (optional, default 8 threads)
-    --codon		Only use the codon region (optional)
-    --fastp		Fastp path (optional)
-    --spades		Spades python path (optional)
-    --diamond		Diamond python path (optional)
-    --sortdiamond	SortDiamond python path (optional)
-    --bowtie2		Bowtie2 path (optional)
-    --samtools		Samtools path (optional)
-    --bcftools		Bcftools path (optional)
-    --exonerate		Exonerate path (optional)
-    --macse		Macse jarfile path (optional)
-    --delstop		Delstop path (optional)
-    --deltaxa		Deltaxa path (optional)
-    --trimal		Trimal path (optional)
-    --concataln		Concataln path (optional)
-    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta 
+    Tool paths (optional; command names are resolved through PATH):
+    --bcftools		Bcftools path
+    --bowtie2		Bowtie2 path
+    --concataln		Concataln path
+    --delstop		Delstop path
+    --deltaxa		Deltaxa path
+    --diamond		Diamond path
+    --exonerate	Exonerate path
+    --fastp		Fastp path
+    --macse		Macse jarfile path
+    --samtools	Samtools path
+    --sortdiamond	SortDiamond path
+    --spades		Spades python path
+    --trimal		Trimal path
+    Directories (optional; relative paths use the run directory):
+    --raw_dir		Input FASTQ directory (default: 00_raw)
+    --fastp_dir	Output directory (default: 01_fastp)
+    --spades_dir	Output directory (default: 02_spades)
+    --bowtie2_dir	Output directory (default: 03_bowtie2)
+    --bam_dir		Output directory (default: 04_bam)
+    --vcf_dir		Output directory (default: 05_vcf)
+    --consen_dir	Output directory (default: 06_consen)
+    --macse_dir	Output directory (default: 07_macse)
+    --trimal_dir	Output directory (default: 08_trimal)
+    for example: ./RGBEPP -f all -l list -t 8 -r reference.fasta
 ```
+
+Tool-specific `*_paras` settings are kept in `config.example` rather than repeated in the help. If a tool path or directory is supplied both on the command line and in the config file, RGBEPP warns when the values differ and uses the config value. `*_paras` values are configured in the config file.
+
+For a full `-f all` run, RGBEPP checks the required tools and input files before starting any stage, so a missing executable (for example `sortdiamond`) or MACSE JAR is reported before time-consuming assembly begins. To continue after a failed run, repeat the command with `--resume`. Stage checkpoints are written under `.rgbepp/checkpoints/`; `.failed` and `.warning` files include the count and full command lines that failed. If every command in a stage fails, RGBEPP exits and `--resume` retries that stage; if some commands succeed and others fail, it warns and marks the stage complete, so `--resume` will not rerun it. Complete outputs from runs without checkpoints are also used to identify stages that can be skipped. Resume assumes the inputs and parameters are unchanged, so do not use it after changing the reference, samples, tools, or stage parameters unless you first remove the affected stage outputs and checkpoint. Omit `--resume` to rerun selected stages normally.
 
 ### Directories Design
 
 The tree below shows the default run layout, not a set of output directories that must all be created by hand. Run RGBEPP from the project/run directory; the pipeline creates the output directories as each corresponding stage runs. For a full run (`-f all`), this includes `01_fastp` through `08_trimal` (and intermediate subdirectories). If you run only one stage, its required inputs from earlier stages must already exist.
 
-You must provide the input data yourself: create `00_raw` (or set `raw_dir` in the config) and put the paired FASTQ files there. The directory listed in `raw_dir` is not created automatically. Also provide the sample list, reference FASTA, and—if needed—the gene list as files; their paths are supplied with `-l`, `-r`, and `-g`. The `genes` entry in the illustration represents the gene-list input file, not an output directory. You do not need to create the illustrated output directories in advance.
+You must provide the input data yourself: create `00_raw` (or select another input location with `--raw_dir` or `raw_dir` in the config) and put the paired FASTQ files there. The raw-data directory is not created automatically. Also provide the sample list, reference FASTA, and—if needed—the gene list as files; their paths are supplied with `-l`, `-r`, and `-g`. The `genes` entry in the illustration represents the gene-list input file, not an output directory. You do not need to create the illustrated output directories in advance.
 
-By default, output folders are created relative to the current working directory. A config file can change the stage directories (for example, `fastp_dir`, `spades_dir`, and `macse_dir`); relative paths in the config are also relative to the directory from which RGBEPP is run.
+By default, output folders are created relative to the current working directory. Set a stage directory with its command-line option (for example, `--fastp_dir`, `--spades_dir`, or `--macse_dir`) or in the config file; relative paths are resolved from the directory from which RGBEPP is run.
 
 ```
 .
