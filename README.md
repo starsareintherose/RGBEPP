@@ -140,6 +140,8 @@ For a full `-f all` run, RGBEPP checks the required tools and input files before
 
 ### Directories Design
 
+A test dataset is available at [GitHub](https://github.com/starsareintherose/RGBEPP_testdata).
+
 The tree below shows the default run layout, not a set of output directories that must all be created by hand. Run RGBEPP from the project/run directory; the pipeline creates the output directories as each corresponding stage runs. For a full run (`-f all`), this includes `01_fastp` through `08_trimal` (and intermediate subdirectories). If you run only one stage, its required inputs from earlier stages must already exist.
 
 You must provide the input data yourself: create `00_raw` (or select another input location with `--raw_dir` or `raw_dir` in the config) and put the paired FASTQ files there. The raw-data directory is not created automatically. Also provide the sample list, reference FASTA, and—if needed—the gene list as files; their paths are supplied with `-l`, `-r`, and `-g`. The `genes` entry in the illustration represents the gene-list input file, not an output directory. You do not need to create the illustrated output directories in advance.
